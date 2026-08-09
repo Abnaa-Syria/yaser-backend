@@ -1,0 +1,21 @@
+import { Router } from 'express';
+import * as adminUserController from './admin-user.controller.js';
+import { protect } from '../../../middlewares/auth.middleware.js';
+import { requirePermission } from '../../../middlewares/permission.middleware.js';
+import { validate } from '../../../middlewares/validate.middleware.js';
+import * as adminUserValidation from './admin-user.validation.js';
+const router = Router();
+router.use(protect);
+router.get('/', requirePermission('user:manage'), validate(adminUserValidation.listUsersSchema), adminUserController.getAllUsers);
+router.get('/:id', requirePermission('user:manage'), validate(adminUserValidation.userIdParamSchema), adminUserController.getUser);
+router.patch('/:id', requirePermission('user:manage'), validate(adminUserValidation.updateAdminUserSchema), adminUserController.updateUser);
+router.patch('/:id/toggle-active', requirePermission('user:manage'), validate(adminUserValidation.userIdParamSchema), adminUserController.toggleActive);
+router.patch('/:id/change-password', requirePermission('user:manage'), validate(adminUserValidation.setAdminUserPasswordSchema), adminUserController.setUserPassword);
+router.delete('/:id', requirePermission('user:manage'), validate(adminUserValidation.userIdParamSchema), adminUserController.deleteUser);
+router.post('/:id/permissions', requirePermission('user:permission:grant'), validate(adminUserValidation.grantPermissionSchema), adminUserController.grantPermission);
+router.delete('/:id/permissions/:permissionId', requirePermission('user:permission:grant'), validate(adminUserValidation.revokePermissionSchema), adminUserController.revokePermission);
+router.get('/:id/sessions', requirePermission('user:manage'), validate(adminUserValidation.userIdParamSchema), adminUserController.getUserSessions);
+router.get('/:id/devices', requirePermission('user:manage'), validate(adminUserValidation.userIdParamSchema), adminUserController.getUserDevices);
+router.delete('/:id/sessions', requirePermission('user:manage'), validate(adminUserValidation.userIdParamSchema), adminUserController.forceLogout);
+export default router;
+//# sourceMappingURL=admin-user.routes.js.map

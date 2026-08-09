@@ -1,0 +1,1 @@
+{"version":3,"file":"permissionBuilder.js","sourceRoot":"","sources":["../../src/utils/permissionBuilder.ts"],"names":[],"mappings":"AAAA;;;GAGG;AACH,MAAM,CAAC,MAAM,eAAe,GAAG,CAAC,SAAiB,EAAE,QAAiB,EAAU,EAAE;IAC9E,IAAI,CAAC,QAAQ;QAAE,OAAO,SAAS,CAAC;IAChC,OAAO,GAAG,QAAQ,IAAI,SAAS,EAAE,CAAC;AACpC,CAAC,CAAC"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"student-cohort.service.js","sourceRoot":"","sources":["../../../../src/modules/student/cohorts/student-cohort.service.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,QAAQ,EAAE,MAAM,4BAA4B,CAAC;AAEtD,MAAM,UAAU,GAAG,oFAAoF,CAAC;AAExG,MAAM,CAAC,MAAM,cAAc,GAAG,KAAK,EAAE,GAAG,KAAgB,EAAE,EAAE;IAC1D,MAAM,IAAI,QAAQ,CAAC,UAAU,EAAE,GAAG,CAAC,CAAC;AACtC,CAAC,CAAC"}

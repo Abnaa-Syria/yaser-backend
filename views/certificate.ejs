@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>Yaser USMLE Step 1 Certificate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ep-orange: #1B4FBF;
+            --ep-orange-dark: #163F99;
+            --ep-orange-light: #EFF6FF;
+            --ep-navy: #0F172A;
+            --ep-slate: #1E293B;
+            --ep-muted: #64748B;
+            --ep-white: #ffffff;
+            --ep-border: #e2e8f0;
+        }
+
+        @page {
+            size: A4 landscape;
+            margin: 0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Cairo', 'Inter', sans-serif;
+            background: var(--ep-orange-light);
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .certificate {
+            width: 1122px;
+            height: 794px;
+            padding: 22px;
+            background: linear-gradient(135deg, var(--ep-orange) 0%, var(--ep-orange-dark) 55%, #c4640d 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .certificate::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            opacity: 0.08;
+            background-image:
+                radial-gradient(circle at 20% 30%, #fff 0 2px, transparent 3px),
+                radial-gradient(circle at 80% 70%, #fff 0 2px, transparent 3px);
+            background-size: 48px 48px;
+            pointer-events: none;
+        }
+
+        .inner {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+            background: var(--ep-white);
+            border-radius: 28px;
+            border: 3px solid rgba(255, 255, 255, 0.65);
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+            padding: 44px 56px 40px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .inner::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: linear-gradient(90deg, var(--ep-orange), #3B82F6, var(--ep-orange));
+        }
+
+        .corner {
+            position: absolute;
+            width: 88px;
+            height: 88px;
+            opacity: 0.14;
+        }
+
+        .corner-tl { top: 18px; left: 18px; border-top: 4px solid var(--ep-orange); border-left: 4px solid var(--ep-orange); border-radius: 12px 0 0 0; }
+        .corner-tr { top: 18px; right: 18px; border-top: 4px solid var(--ep-orange); border-right: 4px solid var(--ep-orange); border-radius: 0 12px 0 0; }
+        .corner-bl { bottom: 18px; left: 18px; border-bottom: 4px solid var(--ep-navy); border-left: 4px solid var(--ep-navy); border-radius: 0 0 0 12px; }
+        .corner-br { bottom: 18px; right: 18px; border-bottom: 4px solid var(--ep-navy); border-right: 4px solid var(--ep-navy); border-radius: 0 0 12px 0; }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 8px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        .brand-logo {
+            height: 72px;
+            width: auto;
+            max-width: 220px;
+            object-fit: contain;
+        }
+
+        .brand-fallback {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .brand-fallback .en {
+            font-family: 'Inter', sans-serif;
+            font-size: 22px;
+            font-weight: 900;
+            color: var(--ep-navy);
+            letter-spacing: 0.5px;
+        }
+
+        .brand-fallback .ar {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--ep-orange);
+        }
+
+        .header-meta {
+            text-align: left;
+            direction: ltr;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .header-meta .label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--ep-muted);
+        }
+
+        .header-meta .serial {
+            margin-top: 4px;
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--ep-orange);
+            letter-spacing: 0.06em;
+        }
+
+        .title-block {
+            text-align: center;
+            margin: 10px 0 18px;
+        }
+
+        .title-ar {
+            font-size: 42px;
+            font-weight: 900;
+            color: var(--ep-navy);
+            margin: 0;
+            line-height: 1.15;
+        }
+
+        .title-en {
+            font-family: 'Inter', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 0.28em;
+            text-transform: uppercase;
+            color: var(--ep-orange);
+            margin: 8px 0 0;
+        }
+
+        .divider {
+            width: 120px;
+            height: 4px;
+            margin: 14px auto 0;
+            border-radius: 999px;
+            background: linear-gradient(90deg, transparent, var(--ep-orange), transparent);
+        }
+
+        .presented {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--ep-muted);
+            margin: 0 0 8px;
+        }
+
+        .student-name {
+            text-align: center;
+            font-size: 50px;
+            font-weight: 900;
+            color: var(--ep-navy);
+            margin: 0;
+            line-height: 1.2;
+            padding: 0 24px 10px;
+            border-bottom: 2px solid var(--ep-orange-light);
+            display: inline-block;
+            align-self: center;
+        }
+
+        .body-copy {
+            text-align: center;
+            font-size: 19px;
+            line-height: 1.85;
+            color: var(--ep-slate);
+            max-width: 760px;
+            margin: 18px auto 0;
+        }
+
+        .course-name {
+            display: inline-block;
+            font-size: 26px;
+            font-weight: 900;
+            color: var(--ep-orange);
+            margin-top: 4px;
+        }
+
+        .content-row {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            margin-top: auto;
+            gap: 24px;
+            padding-top: 20px;
+        }
+
+        .footer-block {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .footer-label {
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--ep-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .footer-value {
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--ep-navy);
+        }
+
+        .footer-value.ltr {
+            direction: ltr;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .signature {
+            text-align: center;
+            min-width: 220px;
+        }
+
+        .signature-line {
+            width: 180px;
+            height: 2px;
+            background: var(--ep-border);
+            margin: 0 auto 8px;
+        }
+
+        .signature-name {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--ep-navy);
+        }
+
+        .signature-role {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--ep-muted);
+            margin-top: 2px;
+        }
+
+        /* Platform official seal */
+        .platform-seal {
+            position: relative;
+            width: 132px;
+            height: 132px;
+            flex-shrink: 0;
+        }
+
+        .platform-seal svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .seal-center {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .seal-ep {
+            font-family: 'Inter', sans-serif;
+            font-size: 30px;
+            font-weight: 900;
+            color: var(--ep-orange);
+            line-height: 1;
+            letter-spacing: -1px;
+        }
+
+        .seal-verified {
+            margin-top: 4px;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+            color: var(--ep-navy);
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <div class="certificate">
+        <div class="inner">
+            <div class="corner corner-tl"></div>
+            <div class="corner corner-tr"></div>
+            <div class="corner corner-bl"></div>
+            <div class="corner corner-br"></div>
+
+            <div class="header">
+                <div class="brand" style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                    <% if (logoBase64) { %>
+                        <img class="brand-logo" src="<%= logoBase64 %>" alt="Yaser USMLE Step 1" style="height: 52px; margin-bottom: 2px;">
+                    <% } %>
+                    <div class="brand-text" style="display: flex; flex-direction: column; text-align: right; line-height: 1.2;">
+                        <span style="font-size: 14px; font-weight: 800; color: var(--ep-navy);">منصة ياسر للتحضير لامتحان USMLE Step 1</span>
+                        <span style="font-size: 10px; font-weight: 700; color: var(--ep-muted); font-family: 'Inter', sans-serif;">Yaser USMLE Step 1</span>
+                    </div>
+                </div>
+                <div class="header-meta">
+                    <div class="label">Verification ID</div>
+                    <div class="serial"><%= serialNumber %></div>
+                </div>
+            </div>
+
+            <div class="title-block">
+                <h1 class="title-ar">شهادة إتمام المساق</h1>
+                <p class="title-en">Course Completion Certificate</p>
+                <div class="divider"></div>
+            </div>
+
+            <p class="presented">تُمنح هذه الشهادة بكل فخر للمتدرب / trainee</p>
+            <h2 class="student-name"><%= studentName %></h2>
+
+            <p class="body-copy">
+                وذلك لإتمامه/إتمامها بنجاح متطلبات المساق التعليمي
+                <br>
+                <span class="course-name">« <%= courseName %> »</span>
+                <br>
+                ضمن برنامج التحضير لامتحان USMLE Step 1 عبر منصة ياسر التعليمية.
+            </p>
+
+            <div class="content-row">
+                <div class="footer-block">
+                    <span class="footer-label">تاريخ الإصدار</span>
+                    <span class="footer-value"><%= date %></span>
+                </div>
+
+                <div class="platform-seal" aria-hidden="true">
+                    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <path id="sealTop" d="M 100,28 A 72,72 0 1,1 99.9,28" fill="none"/>
+                            <path id="sealBottom" d="M 100,172 A 72,72 0 0,1 99.9,172" fill="none"/>
+                        </defs>
+                        <circle cx="100" cy="100" r="94" fill="#EFF6FF" stroke="#1B4FBF" stroke-width="5"/>
+                        <circle cx="100" cy="100" r="78" fill="none" stroke="#0F172A" stroke-width="2" stroke-dasharray="5 4"/>
+                        <circle cx="100" cy="100" r="62" fill="#ffffff" stroke="#1B4FBF" stroke-width="2"/>
+                        <text font-family="Inter, Arial, sans-serif" font-size="11" font-weight="800" fill="#0F172A" letter-spacing="2">
+                            <textPath href="#sealTop" startOffset="50%" text-anchor="middle">YASER USMLE STEP 1</textPath>
+                        </text>
+                        <text font-family="Cairo, Arial, sans-serif" font-size="10" font-weight="800" fill="#1B4FBF">
+                            <textPath href="#sealBottom" startOffset="50%" text-anchor="middle">منصة ياسر • معتمد</textPath>
+                        </text>
+                        <polygon points="100,14 106,30 124,30 110,40 116,56 100,46 84,56 90,40 76,30 94,30" fill="#1B4FBF" opacity="0.9"/>
+                    </svg>
+                    <div class="seal-center">
+                        <span class="seal-ep">YU</span>
+                        <span class="seal-verified">Verified</span>
+                    </div>
+                </div>
+
+                <div class="signature">
+                    <div class="signature-line"></div>
+                    <div class="signature-name">Yaser USMLE Step 1</div>
+                    <div class="signature-role">الإدارة الأكاديمية للمنصة</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,21 @@
+import { Router } from 'express';
+import * as adminController from './admin-exam.controller.js';
+import { protect } from '../../../middlewares/auth.middleware.js';
+import { requirePermission } from '../../../middlewares/permission.middleware.js';
+import { validate } from '../../../middlewares/validate.middleware.js';
+import * as adminValidation from './admin-exam.validation.js';
+const router = Router();
+router.use(protect);
+router.use(requirePermission('exam:manage'));
+router.get('/', validate(adminValidation.listExamsSchema), adminController.getAllExams);
+router.get('/:id', validate(adminValidation.examIdParamSchema), adminController.getExam);
+router.post('/', validate(adminValidation.createExamSchema), adminController.createExam);
+router.patch('/:id', validate(adminValidation.examIdParamSchema), adminController.updateExam);
+router.delete('/:id', validate(adminValidation.examIdParamSchema), adminController.deleteExam);
+router.get('/:id/submissions/export-xlsx', validate(adminValidation.examIdParamSchema), adminController.exportSubmissionsXlsx);
+router.get('/:id/submissions', validate(adminValidation.examIdParamSchema), adminController.getExamSubmissions);
+router.post('/:id/questions', validate(adminValidation.createQuestionSchema), adminController.addQuestion);
+router.patch('/:id/questions/:questionId', validate(adminValidation.questionIdParamSchema), adminController.updateQuestion);
+router.delete('/:id/questions/:questionId', validate(adminValidation.questionIdParamSchema), adminController.removeQuestion);
+export default router;
+//# sourceMappingURL=admin-exam.routes.js.map

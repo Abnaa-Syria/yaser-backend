@@ -1,0 +1,72 @@
+import { Request, Response, NextFunction } from 'express';
+import { verifyToken, JwtPayload } from '../utils/security/jwt.js';
+import { AppError } from '../utils/AppError.js';
+import { catchAsync } from '../utils/catchAsync.js';
+import { prisma } from '../prisma.js';
+
+function headerFingerprint(req: Request): string | undefined {
+  const raw = req.get('x-device-fingerprint') || req.get('X-Device-Fingerprint');
+  const fp = String(raw || '').trim();
+  return fp.length >= 8 ? fp.slice(0, 191) : undefined;
+}
+
+export const protectTrial = catchAsync(async (req: Request, _res: Response, next: NextFunction) => {
+  let token: string | undefined;
+  if (req.headers.authorization?.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+  if (!token) {
+    return next(new AppError('Trial session required. Start a free trial first.', 401));
+  }
+
+  let decoded: JwtPayload;
+  try {
+    decoded = verifyToken({ token }) as JwtPayload;
+  } catch {
+    return next(new AppError('Trial session expired or invalid. Please start again.', 401));
+  }
+
+  if (decoded.type !== 'trial' || !decoded.trialId) {
+    return next(new AppError('Invalid trial token.', 401));
+  }
+
+  const session = await prisma.trialSession.findUnique({
+    where: { id: String(decoded.trialId) },
+  });
+  if (!session) {
+    return next(new AppError('Trial session not found. Please start again.', 401));
+  }
+
+  if (session.revokedAt) {
+    return next(new AppError('This device trial was stopped by an administrator.', 403));
+  }
+
+  if (session.expiresAt.getTime() <= Date.now()) {
+    return next(new AppError('Your free trial has ended. Create an account to continue.', 403));
+  }
+
+  const fingerprint = headerFingerprint(req);
+  if (!fingerprint) {
+    return next(new AppError('Device fingerprint required for trial access.', 403));
+  }
+  if (session.fingerprint && fingerprint !== session.fingerprint) {
+    return next(new AppError('Trial session does not match this device.', 403));
+  }
+
+  // Touch lastSeenAt (fire-and-forget so we don't block the request)
+  void prisma.trialSession
+    .update({
+      where: { id: session.id },
+      data: { lastSeenAt: new Date() },
+    })
+    .catch(() => undefined);
+
+  req.trial = {
+    trialId: session.id,
+    type: 'trial',
+    expiresAt: session.expiresAt.toISOString(),
+    fingerprint: session.fingerprint,
+  };
+
+  next();
+});

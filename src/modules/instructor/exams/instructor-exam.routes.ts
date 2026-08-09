@@ -1,0 +1,31 @@
+import { Router } from 'express';
+import * as examController from './instructor-exam.controller.js';
+import { protect } from '../../../middlewares/auth.middleware.js';
+import { requireRole } from '../../../middlewares/role.middleware.js';
+import { validate } from '../../../middlewares/validate.middleware.js';
+import * as examValidation from './instructor-exam.validation.js';
+
+const router = Router();
+
+router.use(protect);
+router.use(requireRole('INSTRUCTOR'));
+
+router.get(
+  '/courses/:courseId/structure',
+  validate(examValidation.courseStructureParamSchema),
+  examController.getCourseStructure
+);
+router.get('/', validate(examValidation.listExamsQuerySchema), examController.listExams);
+router.get('/:id/submissions/export-xlsx', validate(examValidation.examIdParamSchema), examController.exportSubmissionsXlsx);
+router.get('/:id/submissions', validate(examValidation.examIdParamSchema), examController.getSubmissions);
+router.get('/:id', validate(examValidation.examIdParamSchema), examController.getExamById);
+
+router.post('/', validate(examValidation.createExamSchema), examController.createExam);
+router.patch('/:id', validate(examValidation.examIdParamSchema), examController.updateExam);
+router.delete('/:id', validate(examValidation.examIdParamSchema), examController.deleteExam);
+
+router.post('/:id/questions', validate(examValidation.createQuestionSchema), examController.addQuestion);
+router.patch('/:id/questions/:questionId', validate(examValidation.questionIdParamSchema), examController.updateQuestion);
+router.delete('/:id/questions/:questionId', validate(examValidation.questionIdParamSchema), examController.removeQuestion);
+
+export default router;
