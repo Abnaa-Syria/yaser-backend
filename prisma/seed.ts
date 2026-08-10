@@ -18,7 +18,7 @@ const permissions = [
   'subscription:manage', 'coupon:manage', 'instructor:manage',
   'instructor_application:manage', 'support:manage', 'cms:manage', 'settings:manage',
   'audit:read', 'dashboard:read', 'category:manage',
-  'certificate:manage',
+  'certificate:manage', 'event:manage',
 ] as const;
 
 const rolePermissions: Record<string, readonly string[]> = {
@@ -666,7 +666,51 @@ async function main() {
     ],
   });
   await prisma.banner.createMany({ data: [{ title: 'Start Your Step 1 Systems Review', imageUrl: `${DEMO_ORIGIN}/assets/banners/systems-review.webp`, link: '/courses', isActive: true, order: 1 }, { title: 'Live Acid-Base Workshop', imageUrl: `${DEMO_ORIGIN}/assets/banners/acid-base.webp`, link: '/events', isActive: true, order: 2 }, { title: 'Past Demo Campaign', imageUrl: `${DEMO_ORIGIN}/assets/banners/archive.webp`, isActive: false, order: 3 }] });
-  await prisma.platformSetting.createMany({ data: [{ key: 'SITE_NAME', value: 'Yaser USMLE' }, { key: 'CONTACT_EMAIL', value: 'hello@yaserusmle.com' }, { key: 'DEFAULT_CURRENCY', value: 'USD' }, { key: 'MAINTENANCE_MODE', value: false }, { key: 'MAX_TRUSTED_DEVICES', value: 3 }] });
+  const siteOrigin = process.env.PUBLIC_SITE_URL?.replace(/\/$/, '') || 'https://www.alienparts.online';
+  await prisma.platformSetting.createMany({
+    data: [
+      { key: 'SITE_NAME', value: 'Yaser USMLE' },
+      { key: 'CONTACT_EMAIL', value: 'hello@yaserusmle.com' },
+      { key: 'PHONE_NUMBER', value: '+201159007543' },
+      { key: 'SUPPORT_PHONE', value: '+201159007543' },
+      { key: 'DEFAULT_CURRENCY', value: 'USD' },
+      { key: 'MAINTENANCE_MODE', value: false },
+      { key: 'MAX_TRUSTED_DEVICES', value: 3 },
+      { key: 'LOGO_PRIMARY_URL', value: `${siteOrigin}/assets/brand/logo-primary.svg` },
+      { key: 'LOGO_LIGHT_URL', value: `${siteOrigin}/assets/brand/logo-light.svg` },
+      { key: 'LOGO_MARK_URL', value: `${siteOrigin}/assets/brand/logo-mark.svg` },
+      { key: 'SOCIAL_INSTAGRAM_URL', value: 'https://www.instagram.com/yaserusmle' },
+      { key: 'SOCIAL_TWITTER_URL', value: 'https://x.com/yaserusmle' },
+      { key: 'SOCIAL_FACEBOOK_URL', value: 'https://www.facebook.com/yaserusmle' },
+      { key: 'SOCIAL_LINKEDIN_URL', value: 'https://www.linkedin.com/company/yaserusmle' },
+      { key: 'TRIAL_ENABLED', value: true },
+      { key: 'TRIAL_DURATION_DAYS', value: 3 },
+      { key: 'TRIAL_POPUP_ENABLED', value: true },
+      { key: 'TRIAL_TITLE', value: 'Try Yaser USMLE free' },
+      { key: 'TRIAL_TITLE_AR', value: 'جرّب ياسر USMLE مجاناً' },
+      { key: 'TRIAL_SUBTITLE', value: 'Explore selected courses without creating an account.' },
+      { key: 'TRIAL_SUBTITLE_AR', value: 'استكشف كورسات مختارة بدون إنشاء حساب.' },
+      { key: 'TRIAL_CTA_LABEL', value: 'Start free trial' },
+      { key: 'TRIAL_CTA_LABEL_AR', value: 'ابدأ التجربة المجانية' },
+      { key: 'TRIAL_DISMISS_DAYS', value: 7 },
+    ],
+  });
+
+  // Guest trial catalog — first published fixture courses
+  const trialCourseIds = courseFixtures
+    .map((fixture, index) => ({ fixture, id: courses[index]?.id }))
+    .filter((row) => row.id && row.fixture.status === 'APPROVED' && row.fixture.publishStatus === 'PUBLISHED')
+    .slice(0, 3)
+    .map((row) => row.id as string);
+  if (trialCourseIds.length > 0) {
+    await prisma.trialCourse.createMany({
+      data: trialCourseIds.map((courseId, index) => ({
+        courseId,
+        displayOrder: index + 1,
+        isActive: true,
+      })),
+    });
+  }
   await prisma.emailTemplate.createMany({
     data: [
       {

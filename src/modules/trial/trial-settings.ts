@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../prisma.js';
+import { cleanLocalizedString } from '../../utils/localizedText.js';
 
 export const TRIAL_SETTING_KEYS = [
   'TRIAL_ENABLED',
@@ -56,8 +57,7 @@ function asNumber(value: unknown, fallback: number, min = 1, max = 365) {
 }
 
 function asString(value: unknown, fallback: string) {
-  if (typeof value === 'string' && value.trim()) return value.trim();
-  return fallback;
+  return cleanLocalizedString(value, fallback);
 }
 
 export async function loadTrialSettings(): Promise<TrialSettings> {

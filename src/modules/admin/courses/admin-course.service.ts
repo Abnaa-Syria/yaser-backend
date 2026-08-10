@@ -69,7 +69,11 @@ export const updateCourse = async (id: string, data: any, actorId?: string) => {
       where: { id },
       data: {
         title: data.title,
+        titleAr: data.titleAr,
         description: data.description,
+        descriptionAr: data.descriptionAr,
+        shortDescription: data.shortDescription,
+        shortDescriptionAr: data.shortDescriptionAr,
         thumbnail: data.thumbnail,
         introVideoUrl: data.introVideoUrl,
         categoryId: data.categoryId,

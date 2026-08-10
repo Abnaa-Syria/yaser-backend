@@ -57,7 +57,11 @@ export const updateCourseSchema = z.object({
   }),
   body: z.object({
     title: z.string().min(3).max(200).optional(),
-    description: z.string().optional(),
+    titleAr: z.string().max(200).optional().nullable(),
+    description: z.string().optional().nullable(),
+    descriptionAr: z.string().optional().nullable(),
+    shortDescription: z.string().max(500).optional().nullable(),
+    shortDescriptionAr: z.string().max(500).optional().nullable(),
     thumbnail: optionalUrl,
     introVideoUrl: optionalNullableUrl,
     instructorId: optionalNullableUuid,

@@ -1,4 +1,4 @@
-import puppeteer from 'puppeteer';
+import puppeteer, { type Browser, type LaunchOptions } from 'puppeteer';
 import ejs from 'ejs';
 import path from 'path';
 import { resolveCertificateLogoBase64 } from './certificateLogo.js';
@@ -11,6 +11,46 @@ interface CertificateData {
   logoBase64?: string;
 }
 
+function buildLaunchOptions(): LaunchOptions {
+  const executablePath =
+    process.env.PUPPETEER_EXECUTABLE_PATH?.trim() ||
+    process.env.CHROME_PATH?.trim() ||
+    process.env.CHROMIUM_PATH?.trim() ||
+    undefined;
+
+  return {
+    headless: true,
+    ...(executablePath ? { executablePath } : {}),
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--font-render-hinting=none',
+      '--disable-software-rasterizer',
+    ],
+  };
+}
+
+async function withBrowser<T>(fn: (browser: Browser) => Promise<T>): Promise<T> {
+  let browser: Browser | null = null;
+  try {
+    browser = await puppeteer.launch(buildLaunchOptions());
+    return await fn(browser);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `PDF generation failed to launch Chromium/Chrome. ` +
+        `Set PUPPETEER_EXECUTABLE_PATH to a system browser (e.g. /usr/bin/chromium) ` +
+        `and install browser OS dependencies. Underlying error: ${message}`
+    );
+  } finally {
+    if (browser) {
+      await browser.close().catch(() => undefined);
+    }
+  }
+}
+
 export const generateCertificatePDF = async (data: CertificateData): Promise<Buffer> => {
   const templatePath = path.join(process.cwd(), 'views', 'certificate.ejs');
   const htmlContent = await ejs.renderFile(templatePath, {
@@ -18,28 +58,17 @@ export const generateCertificatePDF = async (data: CertificateData): Promise<Buf
     logoBase64: data.logoBase64 || resolveCertificateLogoBase64(),
   });
 
-  // 2. Launch Puppeteer
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'] // Crucial for production servers
+  return withBrowser(async (browser) => {
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      landscape: true,
+      printBackground: true,
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+    });
+    return Buffer.from(pdfBuffer);
   });
-
-  const page = await browser.newPage();
-  
-  // 3. Set content and wait for fonts to load
-  await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-
-  // 4. Generate PDF as a Buffer
-  const pdfBuffer = await page.pdf({
-    format: 'A4',
-    landscape: true,
-    printBackground: true, 
-    margin: { top: 0, right: 0, bottom: 0, left: 0 }
-  });
-
-  await browser.close();
-  
-  return Buffer.from(pdfBuffer);
 };
 
 export interface EvaluationReportData {
@@ -62,22 +91,15 @@ export const generateEvaluationReportPDF = async (data: EvaluationReportData): P
     logoBase64: resolveCertificateLogoBase64(),
   });
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  return withBrowser(async (browser) => {
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      landscape: false,
+      printBackground: true,
+      margin: { top: '1.5cm', right: '1.5cm', bottom: '1.5cm', left: '1.5cm' },
+    });
+    return Buffer.from(pdfBuffer);
   });
-
-  const page = await browser.newPage();
-  await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-
-  const pdfBuffer = await page.pdf({
-    format: 'A4',
-    landscape: false,
-    printBackground: true,
-    margin: { top: '1.5cm', right: '1.5cm', bottom: '1.5cm', left: '1.5cm' }
-  });
-
-  await browser.close();
-  
-  return Buffer.from(pdfBuffer);
 };

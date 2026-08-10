@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { prisma } from '../../prisma.js';
 import { AppError } from '../../utils/AppError.js';
+import { APP_BRAND } from '../../config/brand.config.js';
 import { hashPassword, comparePassword, verifyPassword } from '../../utils/security/hash.js';
 import { generateToken, verifyToken, JwtPayload, getJwtRefreshSecret } from '../../utils/security/jwt.js';
 import { createUserSession, deactivateAllUserSessions } from '../../services/session.service.js';

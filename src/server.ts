@@ -75,6 +75,9 @@ app.use(globalErrorHandler);
 
 httpServer.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
+    import('./bootstrap/ensureRbac.js')
+      .then(({ ensureRbacCatalog }) => ensureRbacCatalog())
+      .catch((err) => console.error('[rbac] failed to ensure catalog', err));
     import('./jobs/expiry-cron.js')
       .then(({ startExpiryCron }) => startExpiryCron())
       .catch((err) => console.error('[expiry-cron] failed to start', err));
