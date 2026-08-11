@@ -208,14 +208,30 @@ export const getRecommendedPublicCourses = async (query: { filter?: string; limi
  * List all active courses with pagination
  */
 export const getPublicCourses = async (query: any) => {
-  const { page = '1', limit = '10', search } = query;
+  const { page = '1', limit = '10', search, category } = query;
   const pageNum = Math.max(1, Number(page) || 1);
-  const limitNum = Math.min(50, Math.max(1, Number(limit) || 10));
+  const limitNum = Math.min(100, Math.max(1, Number(limit) || 10));
   const skip = (pageNum - 1) * limitNum;
 
   const where: any = { isActive: true };
   if (search) {
     where.OR = [{ title: { contains: search } }, { description: { contains: search } }];
+  }
+
+  const categorySlug = typeof category === 'string' ? category.trim() : '';
+  if (categorySlug && categorySlug !== 'all' && categorySlug !== 'recorded') {
+    const cat = await prisma.category.findUnique({
+      where: { slug: categorySlug },
+      select: { id: true, children: { select: { id: true } } },
+    });
+    if (cat) {
+      const categoryIds = [cat.id, ...cat.children.map((c) => c.id)];
+      where.categoryId = { in: categoryIds };
+    } else {
+      where.category = { slug: categorySlug };
+    }
+  } else if (categorySlug === 'recorded') {
+    where.type = 'RECORDED';
   }
 
   const [courses, total] = await prisma.$transaction([
@@ -240,7 +256,7 @@ export const getPublicCourses = async (query: any) => {
         isFeatured: true,
         isLifetimePurchasable: true,
         category: {
-          select: { id: true, name: true, slug: true },
+          select: { id: true, name: true, nameAr: true, slug: true, icon: true },
         },
         instructor: {
           select: {

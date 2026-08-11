@@ -18,5 +18,6 @@ export const listCoursesSchema = z.object({
     page: z.string().regex(/^\d+$/).optional().default('1'),
     limit: z.string().regex(/^\d+$/).optional().default('10'),
     search: z.string().optional(),
+    category: z.string().optional(), // category slug
   }),
 });
