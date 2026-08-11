@@ -213,7 +213,7 @@ export const getPublicCourses = async (query: any) => {
   const limitNum = Math.min(100, Math.max(1, Number(limit) || 10));
   const skip = (pageNum - 1) * limitNum;
 
-  const where: any = { isActive: true };
+  const where: any = notDeleted({ isActive: true });
   if (search) {
     where.OR = [{ title: { contains: search } }, { description: { contains: search } }];
   }
@@ -306,8 +306,8 @@ export const getPublicCourses = async (query: any) => {
  * Get detailed course view by ID
  */
 export const getPublicCourseById = async (id: string) => {
-  const course = await prisma.course.findUnique({
-    where: { id, isActive: true },
+  const course = await prisma.course.findFirst({
+    where: notDeleted({ id, isActive: true }),
     select: {
       id: true,
       title: true,

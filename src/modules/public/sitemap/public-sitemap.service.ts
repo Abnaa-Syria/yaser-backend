@@ -1,5 +1,6 @@
 import { prisma } from '../../../prisma.js';
 import { APP_BRAND } from '../../../config/brand.config.js';
+import { notDeleted } from '../../../utils/soft-delete.js';
 
 const STATIC_PAGES = [
   { path: '/', priority: '1.0' },
@@ -41,7 +42,11 @@ export const buildSitemapXml = async (): Promise<string> => {
 
   const [courses, packages, posts] = await Promise.all([
     prisma.course.findMany({
-      where: { isActive: true, publishStatus: 'PUBLISHED' },
+      where: {
+        ...notDeleted(),
+        isActive: true,
+        publishStatus: 'PUBLISHED',
+      },
       select: { id: true, updatedAt: true },
       orderBy: { updatedAt: 'desc' },
     }),

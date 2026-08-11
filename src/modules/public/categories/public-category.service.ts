@@ -1,5 +1,6 @@
 import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
+import { notDeleted } from '../../../utils/soft-delete.js';
 
 export const getAllCategories = async () => {
   const list = await prisma.category.findMany({
@@ -34,7 +35,7 @@ export const getAllCategories = async () => {
     categories.map(async (cat) => {
       const categoryIds = [cat.id, ...cat.children.map((c) => c.id)];
       const courseCount = await prisma.course.count({
-        where: { isActive: true, categoryId: { in: categoryIds } },
+        where: notDeleted({ isActive: true, categoryId: { in: categoryIds } }),
       });
       return {
         id: cat.id,
@@ -72,6 +73,7 @@ export const getCategoryBySlug = async (slug: string) => {
 
   const courses = await prisma.course.findMany({
     where: {
+      ...notDeleted(),
       isActive: true,
       categoryId: { in: categoryIds },
       status: 'APPROVED',

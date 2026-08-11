@@ -2,6 +2,7 @@ import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
 import { courseOwnerRoleFilter, getPlatformInstructorId } from '../../../config/platform-instructor.js';
 import { platformFeatures } from '../../../config/features.config.js';
+import { notDeleted } from '../../../utils/soft-delete.js';
 
 export const getAllInstructors = async (query: any) => {
   const { page = '1', limit = '10', search } = query;
@@ -113,7 +114,13 @@ export const getInstructorCourses = async (id: string) => {
   const instructorId = id === 'platform-owner' ? await getPlatformInstructorId() : id;
   if (!instructorId) throw new AppError('Instructor not found.', 404);
   return prisma.course.findMany({
-    where: { isActive: true, instructorId, publishStatus: 'PUBLISHED', status: 'APPROVED' },
+    where: {
+      ...notDeleted(),
+      isActive: true,
+      instructorId,
+      publishStatus: 'PUBLISHED',
+      status: 'APPROVED',
+    },
     select: {
       id: true,
       title: true,
