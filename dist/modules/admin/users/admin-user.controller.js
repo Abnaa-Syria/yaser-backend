@@ -13,6 +13,10 @@ export const getAllUsers = catchAsync(async (req, res) => {
         },
     });
 });
+export const createUser = catchAsync(async (req, res) => {
+    const user = await adminUserService.createStaffUser(req.body);
+    successResponse({ res, data: user, message: 'User created successfully', statusCode: 201 });
+});
 export const getUser = catchAsync(async (req, res) => {
     const user = await adminUserService.getUserById(req.params.id);
     successResponse({ res, data: user, message: 'User details retrieved' });

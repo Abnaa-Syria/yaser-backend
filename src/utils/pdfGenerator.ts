@@ -55,7 +55,7 @@ export const generateCertificatePDF = async (data: CertificateData): Promise<Buf
   const templatePath = path.join(process.cwd(), 'views', 'certificate.ejs');
   const htmlContent = await ejs.renderFile(templatePath, {
     ...data,
-    logoBase64: data.logoBase64 || resolveCertificateLogoBase64(),
+    logoBase64: data.logoBase64 || (await resolveCertificateLogoBase64()),
   });
 
   return withBrowser(async (browser) => {
@@ -88,7 +88,7 @@ export const generateEvaluationReportPDF = async (data: EvaluationReportData): P
   const templatePath = path.join(process.cwd(), 'views', 'evaluation_report.ejs');
   const htmlContent = await ejs.renderFile(templatePath, {
     ...data,
-    logoBase64: resolveCertificateLogoBase64(),
+    logoBase64: await resolveCertificateLogoBase64(),
   });
 
   return withBrowser(async (browser) => {

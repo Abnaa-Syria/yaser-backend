@@ -118,8 +118,12 @@ export const deleteCoupon = async (id) => {
 export const getCouponUsageHistory = async (id) => {
     const usages = await prisma.couponUsage.findMany({
         where: { couponId: id },
-        orderBy: { usedAt: 'desc' }
-        // Note: Schema doesn't have relation to User in CouponUsage to prevent deletion issues
+        orderBy: { usedAt: 'desc' },
+        include: {
+            user: {
+                select: { id: true, email: true, fullName: true },
+            },
+        },
     });
     return usages;
 };

@@ -1,13 +1,18 @@
 import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
-import { userHasRoleName } from '../../../utils/role-query.js';
 import { notDeleted, softDeleteData } from '../../../utils/soft-delete.js';
 import { logAudit } from '../../../services/audit-logger.service.js';
 import { ContentStatus } from '@prisma/client';
+import { platformFeatures } from '../../../config/features.config.js';
+import { courseOwnerRoleFilter, getPlatformInstructorId } from '../../../config/platform-instructor.js';
 /**
  * Create a new course
  */
 export const createCourse = async (data, actorId) => {
+    let instructorId = data.instructorId || undefined;
+    if (!instructorId && !platformFeatures.multiInstructor) {
+        instructorId = (await getPlatformInstructorId()) || actorId || undefined;
+    }
     const course = await prisma.course.create({
         data: {
             title: data.title,
@@ -15,7 +20,7 @@ export const createCourse = async (data, actorId) => {
             thumbnail: data.thumbnail,
             introVideoUrl: data.introVideoUrl,
             categoryId: data.categoryId || undefined,
-            instructorId: data.instructorId || undefined,
+            instructorId,
             price: data.price ?? 0,
             isLifetimePurchasable: data.isLifetimePurchasable ?? true,
             type: data.type ?? 'RECORDED',
@@ -59,7 +64,11 @@ export const updateCourse = async (id, data, actorId) => {
             where: { id },
             data: {
                 title: data.title,
+                titleAr: data.titleAr,
                 description: data.description,
+                descriptionAr: data.descriptionAr,
+                shortDescription: data.shortDescription,
+                shortDescriptionAr: data.shortDescriptionAr,
                 thumbnail: data.thumbnail,
                 introVideoUrl: data.introVideoUrl,
                 categoryId: data.categoryId,
@@ -149,7 +158,7 @@ export const deleteCourse = async (id, actorId) => {
 export const assignInstructor = async (courseId, instructorId) => {
     // Check if instructor exists and has correct role
     const instructor = await prisma.user.findFirst({
-        where: { id: instructorId, ...userHasRoleName('INSTRUCTOR') },
+        where: { id: instructorId, ...courseOwnerRoleFilter() },
     });
     if (!instructor)
         throw new AppError('Target user is not a valid instructor.', 400);
@@ -224,14 +233,6 @@ export const getCourseById = async (id) => {
             instructor: {
                 select: { id: true, fullName: true, email: true, avatar: true },
             },
-            liveSessions: {
-                orderBy: { startTime: 'asc' },
-                include: {
-                    instructor: {
-                        select: { id: true, fullName: true, email: true, avatar: true },
-                    },
-                },
-            },
             units: {
                 orderBy: { order: 'asc' },
                 include: {
@@ -246,16 +247,6 @@ export const getCourseById = async (id) => {
                         },
                     },
                 },
-            },
-            homeworks: {
-                include: {
-                    lessons: {
-                        include: {
-                            lesson: { select: { id: true, title: true } }
-                        }
-                    }
-                },
-                orderBy: { createdAt: 'desc' },
             },
             exams: {
                 include: {

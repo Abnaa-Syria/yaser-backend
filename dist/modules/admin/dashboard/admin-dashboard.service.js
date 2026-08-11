@@ -191,26 +191,7 @@ export const getOverview = async () => {
         type: item.type,
         at: item.at.toISOString()
     }));
-    const finalAuditLogs = auditActivity.length > 0 ? auditActivity : [
-        {
-            id: 'mock-1',
-            message: 'Instructor Ali Fahmy submitted a course for review',
-            type: 'audit',
-            at: new Date().toISOString()
-        },
-        {
-            id: 'mock-2',
-            message: 'Student Sarah J. initiated a live session connection',
-            type: 'session',
-            at: new Date(Date.now() - 600000).toISOString()
-        },
-        {
-            id: 'mock-3',
-            message: 'Admin toggle active status for instructor Dr. Youssef',
-            type: 'audit',
-            at: new Date(Date.now() - 1800000).toISOString()
-        }
-    ];
+    const finalAuditLogs = auditActivity;
     return {
         summary: {
             totalRevenue: Math.round((revenueAgg._sum.amount || 0) * 100) / 100,

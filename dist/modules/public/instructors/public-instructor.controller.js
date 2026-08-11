@@ -14,6 +14,10 @@ export const getInstructor = catchAsync(async (req, res) => {
     const result = await instructorService.getPublicInstructorProfile(req.params.id);
     successResponse({ res, data: result, message: 'Instructor profile retrieved' });
 });
+export const getPlatformOwner = catchAsync(async (_req, res) => {
+    const result = await instructorService.getPlatformOwnerPublicProfile();
+    successResponse({ res, data: result, message: 'Platform instructor retrieved' });
+});
 export const getCourses = catchAsync(async (req, res) => {
     const result = await instructorService.getInstructorCourses(req.params.id);
     successResponse({ res, data: result, message: 'Instructor courses retrieved' });

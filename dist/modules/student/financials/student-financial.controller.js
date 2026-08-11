@@ -51,12 +51,4 @@ export const getMyPackageBalances = catchAsync(async (req, res) => {
     successResponse({ res, data: result, message: 'Purchased packages retrieved successfully' });
 });
 export const getMySubscriptions = getMyPackageBalances;
-export const liveSessionCheckout = catchAsync(async (req, res) => {
-    const liveSessionId = req.params.liveSessionId;
-    const result = await financialService.createLiveSessionPurchasePayment(req.user.id, liveSessionId, req.body);
-    const message = result.reusedPending
-        ? 'You already have a pending payment for this live session.'
-        : 'Live session booking submitted. Wait for approval.';
-    successResponse({ res, data: result, message, statusCode: 201 });
-});
 //# sourceMappingURL=student-financial.controller.js.map

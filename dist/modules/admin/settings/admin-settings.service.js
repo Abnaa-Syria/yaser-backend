@@ -1,5 +1,6 @@
 import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
+import { previewTemplate, sendMail } from '../../../utils/mail.js';
 function toJsonValue(value) {
     if (value === null || value === undefined)
         return '';
@@ -42,5 +43,32 @@ export const updateEmailTemplate = async (id, data) => {
 };
 export const deleteEmailTemplate = async (id) => {
     return await prisma.emailTemplate.delete({ where: { id } });
+};
+export const previewEmailTemplate = async (input) => {
+    let subject = input.subject;
+    let body = input.body;
+    if (input.id) {
+        const template = await prisma.emailTemplate.findUnique({ where: { id: input.id } });
+        if (!template)
+            throw new AppError('Email template not found', 404);
+        subject = subject || template.subject;
+        body = body || template.body;
+    }
+    if (!subject || !body) {
+        throw new AppError('Subject and body are required for preview', 400);
+    }
+    return previewTemplate(subject, body, input.vars);
+};
+export const sendTestEmailTemplate = async (input) => {
+    const preview = await previewEmailTemplate(input);
+    const result = await sendMail({
+        to: input.to,
+        subject: `[TEST] ${preview.subject}`,
+        html: preview.html,
+    });
+    if (!result.sent && result.skipped) {
+        throw new AppError('SMTP is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS to send email.', 503);
+    }
+    return { ...result, preview };
 };
 //# sourceMappingURL=admin-settings.service.js.map

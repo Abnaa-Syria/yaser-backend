@@ -1,6 +1,9 @@
+import { PLATFORM_CURRENCY } from '../../../config/currency.js';
 import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
 export const createPackage = async (data) => {
+    const isActive = data.isActive !== undefined ? data.isActive : true;
+    const publishStatus = data.publishStatus ?? (isActive ? 'PUBLISHED' : 'DRAFT');
     return prisma.$transaction(async (tx) => {
         const pkg = await tx.coursePackage.create({
             data: {
@@ -14,9 +17,9 @@ export const createPackage = async (data) => {
                 coverImage: data.coverImage,
                 price: data.price,
                 originalPrice: data.originalPrice,
-                currency: data.currency,
-                isActive: data.isActive !== undefined ? data.isActive : true,
-                publishStatus: data.publishStatus,
+                currency: PLATFORM_CURRENCY,
+                isActive,
+                publishStatus,
                 isFeatured: data.isFeatured,
                 displayOrder: data.displayOrder,
                 courses: data.courseIds ? {
@@ -30,7 +33,7 @@ export const createPackage = async (data) => {
                         labelAr: tier.labelAr,
                         price: tier.price,
                         originalPrice: tier.originalPrice,
-                        currency: tier.currency,
+                        currency: PLATFORM_CURRENCY,
                         durationDays: tier.durationDays,
                         durationValue: tier.durationValue,
                         durationUnit: tier.durationUnit,
@@ -88,6 +91,13 @@ export const getPackageById = async (id) => {
 };
 export const updatePackage = async (id, data) => {
     return prisma.$transaction(async (tx) => {
+        const publishStatus = data.publishStatus !== undefined
+            ? data.publishStatus
+            : data.isActive === undefined
+                ? undefined
+                : data.isActive
+                    ? 'PUBLISHED'
+                    : 'DRAFT';
         await tx.coursePackage.update({
             where: { id },
             data: {
@@ -101,9 +111,9 @@ export const updatePackage = async (id, data) => {
                 coverImage: data.coverImage,
                 price: data.price,
                 originalPrice: data.originalPrice,
-                currency: data.currency,
+                currency: PLATFORM_CURRENCY,
                 isActive: data.isActive,
-                publishStatus: data.publishStatus,
+                publishStatus,
                 isFeatured: data.isFeatured,
                 displayOrder: data.displayOrder,
             }
@@ -152,7 +162,7 @@ export const updatePackage = async (id, data) => {
                             labelAr: tier.labelAr,
                             price: tier.price,
                             originalPrice: tier.originalPrice,
-                            currency: tier.currency,
+                            currency: PLATFORM_CURRENCY,
                             durationDays: tier.durationDays,
                             durationValue: tier.durationValue,
                             durationUnit: tier.durationUnit,
@@ -173,7 +183,7 @@ export const updatePackage = async (id, data) => {
                             labelAr: tier.labelAr,
                             price: tier.price,
                             originalPrice: tier.originalPrice,
-                            currency: tier.currency,
+                            currency: PLATFORM_CURRENCY,
                             durationDays: tier.durationDays,
                             durationValue: tier.durationValue,
                             durationUnit: tier.durationUnit,

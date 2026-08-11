@@ -19,5 +19,6 @@ router.get('/payments/:id', validate(adminFinanceValidation.paymentIdParamSchema
 router.patch('/payments/:id/status', validate(adminFinanceValidation.updatePaymentStatusSchema), adminFinanceController.updatePaymentStatus);
 router.patch('/payments/:id/approve', validate(adminFinanceValidation.approvePaymentSchema), adminFinanceController.approvePayment);
 router.patch('/payments/:id/reject', validate(adminFinanceValidation.rejectPaymentSchema), adminFinanceController.rejectPayment);
+router.get('/payments/:id/proof', validate(adminFinanceValidation.paymentIdParamSchema), adminFinanceController.downloadPaymentProof);
 export default router;
 //# sourceMappingURL=admin-financial.routes.js.map

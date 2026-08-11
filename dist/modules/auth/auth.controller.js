@@ -43,4 +43,15 @@ export const resetPassword = catchAsync(async (req, res) => {
     const result = await authService.resetPassword(token, newPassword);
     successResponse({ res, data: result, message: result.message });
 });
+export const verifyEmail = catchAsync(async (req, res) => {
+    const token = (req.body?.token || req.params.token);
+    if (!token)
+        throw new AppError('Verification token is required.', 400);
+    const result = await authService.verifyEmail(token);
+    successResponse({ res, data: result, message: result.message });
+});
+export const resendVerification = catchAsync(async (req, res) => {
+    const result = await authService.resendEmailVerification(req.body.email);
+    successResponse({ res, data: result, message: result.message });
+});
 //# sourceMappingURL=auth.controller.js.map

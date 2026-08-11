@@ -5,8 +5,4 @@ export const getStudentPerformance = catchAsync(async (req, res) => {
     const result = await adminStudentService.getStudentPerformanceForAdmin(req.params.id);
     successResponse({ res, data: result, message: 'Student performance retrieved' });
 });
-export const getStudentAttendance = catchAsync(async (req, res) => {
-    const result = await adminStudentService.getStudentAttendanceForAdmin(req.params.id);
-    successResponse({ res, data: result, message: 'Student attendance retrieved' });
-});
 //# sourceMappingURL=admin-student.controller.js.map

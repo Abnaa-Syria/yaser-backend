@@ -39,4 +39,23 @@ export const deleteEmailTemplate = catchAsync(async (req, res) => {
     await settingsService.deleteEmailTemplate(req.params.id);
     successResponse({ res, message: 'Email template deleted successfully' });
 });
+export const previewEmailTemplate = catchAsync(async (req, res) => {
+    const data = await settingsService.previewEmailTemplate({
+        id: req.body.id || req.params.id,
+        subject: req.body.subject,
+        body: req.body.body,
+        vars: req.body.vars,
+    });
+    successResponse({ res, data });
+});
+export const sendTestEmailTemplate = catchAsync(async (req, res) => {
+    const data = await settingsService.sendTestEmailTemplate({
+        id: req.body.id || req.params.id,
+        to: req.body.to,
+        subject: req.body.subject,
+        body: req.body.body,
+        vars: req.body.vars,
+    });
+    successResponse({ res, data, message: 'Test email sent successfully' });
+});
 //# sourceMappingURL=admin-settings.controller.js.map

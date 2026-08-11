@@ -3,10 +3,16 @@ import { hashPassword } from '../../../utils/security/hash.js';
 import { AppError } from '../../../utils/AppError.js';
 import { getRoleIdByName, userHasRoleName } from '../../../utils/role-query.js';
 import { getInstructorPerformanceDashboard } from '../../instructor/performance/instructor-performance.service.js';
+import { platformFeatures } from '../../../config/features.config.js';
+import { courseOwnerRoleFilter } from '../../../config/platform-instructor.js';
+import { addAvailability, deleteAvailabilitySlot, updateAvailabilitySlotPrice, } from '../../instructor/availability/instructor-availability.service.js';
 /**
- * Create a new instructor (Admin only)
+ * Create a new instructor (Admin only) — multi-instructor platforms only.
  */
 export const createInstructor = async (data) => {
+    if (!platformFeatures.multiInstructor) {
+        throw new AppError('This platform has a single instructor (the platform owner). Adding instructors is disabled.', 403);
+    }
     const hashedPassword = await hashPassword(data.password);
     const instructorRoleId = await getRoleIdByName('INSTRUCTOR');
     const instructor = await prisma.user.create({
@@ -30,13 +36,25 @@ export const createInstructor = async (data) => {
 export const getAllInstructors = async (query) => {
     const { isActive, search, page = 1, limit = 10 } = query;
     const skip = (Number(page) - 1) * Number(limit);
-    const where = userHasRoleName('INSTRUCTOR');
+    const where = courseOwnerRoleFilter();
     if (isActive !== undefined)
         where.isActive = isActive === 'true';
     if (search) {
         where.OR = [
             { fullName: { contains: search } },
             { email: { contains: search } },
+        ];
+    }
+    // In single-owner mode, only show people who actually teach (or the platform owner).
+    if (!platformFeatures.multiInstructor) {
+        where.AND = [
+            ...(where.AND || []),
+            {
+                OR: [
+                    { coursesInstructed: { some: {} } },
+                    userHasRoleName('SUPER_ADMIN'),
+                ],
+            },
         ];
     }
     const [rows, total] = await prisma.$transaction([
@@ -110,7 +128,7 @@ export const getAllInstructors = async (query) => {
  */
 export const getInstructorById = async (id) => {
     const instructor = await prisma.user.findFirst({
-        where: { id, ...userHasRoleName('INSTRUCTOR') },
+        where: { id, ...courseOwnerRoleFilter() },
         include: {
             coursesInstructed: {
                 select: {
@@ -158,7 +176,7 @@ export const getInstructorById = async (id) => {
  */
 export const getInstructorPerformanceForAdmin = async (instructorId) => {
     const exists = await prisma.user.findFirst({
-        where: { id: instructorId, ...userHasRoleName('INSTRUCTOR') },
+        where: { id: instructorId, ...courseOwnerRoleFilter() },
         select: { id: true },
     });
     if (!exists)
@@ -166,11 +184,11 @@ export const getInstructorPerformanceForAdmin = async (instructorId) => {
     return getInstructorPerformanceDashboard(instructorId);
 };
 /**
- * Upcoming availability slots for an instructor (admin read-only).
+ * Upcoming availability slots for an instructor (admin).
  */
 export const getInstructorAvailabilityForAdmin = async (instructorId) => {
     const exists = await prisma.user.findFirst({
-        where: { id: instructorId, ...userHasRoleName('INSTRUCTOR') },
+        where: { id: instructorId, ...courseOwnerRoleFilter() },
         select: { id: true },
     });
     if (!exists)
@@ -188,15 +206,39 @@ export const getInstructorAvailabilityForAdmin = async (instructorId) => {
             startTime: true,
             endTime: true,
             status: true,
+            price: true,
             createdAt: true,
         },
     });
+};
+export const createInstructorAvailabilityForAdmin = async (instructorId, data) => {
+    const exists = await prisma.user.findFirst({
+        where: { id: instructorId, ...courseOwnerRoleFilter() },
+        select: { id: true },
+    });
+    if (!exists)
+        throw new AppError('Instructor not found.', 404);
+    const startTime = new Date(data.startTime);
+    const endTime = new Date(data.endTime);
+    if (!(startTime instanceof Date) || Number.isNaN(startTime.getTime())) {
+        throw new AppError('Invalid start time.', 400);
+    }
+    if (!(endTime instanceof Date) || Number.isNaN(endTime.getTime()) || endTime <= startTime) {
+        throw new AppError('End time must be after start time.', 400);
+    }
+    return addAvailability(instructorId, startTime, endTime, Number(data.price));
+};
+export const deleteInstructorAvailabilityForAdmin = async (instructorId, slotId) => {
+    return deleteAvailabilitySlot(instructorId, slotId);
+};
+export const updateInstructorAvailabilityPriceForAdmin = async (instructorId, slotId, price) => {
+    return updateAvailabilitySlotPrice(instructorId, slotId, price);
 };
 /**
  * Update instructor (Admin only)
  */
 export const updateInstructor = async (id, data) => {
-    const instructor = await prisma.user.findFirst({ where: { id, ...userHasRoleName('INSTRUCTOR') } });
+    const instructor = await prisma.user.findFirst({ where: { id, ...courseOwnerRoleFilter() } });
     if (!instructor)
         throw new AppError('Instructor not found.', 404);
     const updatedInstructor = await prisma.user.update({
@@ -210,7 +252,7 @@ export const updateInstructor = async (id, data) => {
  * Delete instructor (Admin only)
  */
 export const deleteInstructor = async (id) => {
-    const instructor = await prisma.user.findFirst({ where: { id, ...userHasRoleName('INSTRUCTOR') } });
+    const instructor = await prisma.user.findFirst({ where: { id, ...courseOwnerRoleFilter() } });
     if (!instructor)
         throw new AppError('Instructor not found.', 404);
     await prisma.user.delete({ where: { id } });

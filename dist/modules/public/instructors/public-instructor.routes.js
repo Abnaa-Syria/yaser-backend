@@ -4,6 +4,7 @@ import { validate } from '../../../middlewares/validate.middleware.js';
 import * as instructorValidation from './public-instructor.validation.js';
 const router = Router();
 router.get('/', validate(instructorValidation.listInstructorsSchema), instructorController.getInstructors);
+router.get('/platform-owner', instructorController.getPlatformOwner);
 router.get('/:id/slots', validate(instructorValidation.instructorIdParamSchema), instructorController.getInstructorSlots);
 router.get('/:id/courses', validate(instructorValidation.instructorIdParamSchema), instructorController.getCourses);
 router.get('/:id/reviews', validate(instructorValidation.instructorIdParamSchema), instructorController.getReviews);

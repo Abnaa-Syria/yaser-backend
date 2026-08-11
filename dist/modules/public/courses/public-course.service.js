@@ -23,23 +23,10 @@ const publicCurriculumSelect = {
                             id: true,
                             title: true,
                             order: true,
-                            isLive: true,
                             durationSeconds: true,
                         },
                     },
                 },
-            },
-        },
-    },
-    homeworks: {
-        orderBy: { dueDate: 'asc' },
-        select: {
-            id: true,
-            title: true,
-            dueDate: true,
-            unitId: true,
-            lessons: {
-                select: { lessonId: true },
             },
         },
     },
@@ -166,13 +153,10 @@ export const getRecommendedPublicCourses = async (query) => {
         },
     ];
     const where = { ...baseWhere };
-    if (filter === 'live' || filter === 'hybrid') {
-        where.type = 'HYBRID';
-    }
-    else if (filter === 'recorded') {
+    if (filter === 'recorded') {
         where.type = 'RECORDED';
     }
-    else if (filter !== 'bestseller' && filter !== 'all') {
+    else if (filter !== 'bestseller' && filter !== 'all' && filter !== 'live' && filter !== 'hybrid') {
         where.category = { slug: filter };
     }
     const rows = await prisma.course.findMany({
@@ -191,13 +175,30 @@ export const getRecommendedPublicCourses = async (query) => {
  * List all active courses with pagination
  */
 export const getPublicCourses = async (query) => {
-    const { page = '1', limit = '10', search } = query;
+    const { page = '1', limit = '10', search, category } = query;
     const pageNum = Math.max(1, Number(page) || 1);
-    const limitNum = Math.min(50, Math.max(1, Number(limit) || 10));
+    const limitNum = Math.min(100, Math.max(1, Number(limit) || 10));
     const skip = (pageNum - 1) * limitNum;
-    const where = { isActive: true };
+    const where = notDeleted({ isActive: true });
     if (search) {
         where.OR = [{ title: { contains: search } }, { description: { contains: search } }];
+    }
+    const categorySlug = typeof category === 'string' ? category.trim() : '';
+    if (categorySlug && categorySlug !== 'all' && categorySlug !== 'recorded') {
+        const cat = await prisma.category.findUnique({
+            where: { slug: categorySlug },
+            select: { id: true, children: { select: { id: true } } },
+        });
+        if (cat) {
+            const categoryIds = [cat.id, ...cat.children.map((c) => c.id)];
+            where.categoryId = { in: categoryIds };
+        }
+        else {
+            where.category = { slug: categorySlug };
+        }
+    }
+    else if (categorySlug === 'recorded') {
+        where.type = 'RECORDED';
     }
     const [courses, total] = await prisma.$transaction([
         prisma.course.findMany({
@@ -221,7 +222,7 @@ export const getPublicCourses = async (query) => {
                 isFeatured: true,
                 isLifetimePurchasable: true,
                 category: {
-                    select: { id: true, name: true, slug: true },
+                    select: { id: true, name: true, nameAr: true, slug: true, icon: true },
                 },
                 instructor: {
                     select: {
@@ -269,8 +270,8 @@ export const getPublicCourses = async (query) => {
  * Get detailed course view by ID
  */
 export const getPublicCourseById = async (id) => {
-    const course = await prisma.course.findUnique({
-        where: { id, isActive: true },
+    const course = await prisma.course.findFirst({
+        where: notDeleted({ id, isActive: true }),
         select: {
             id: true,
             title: true,
@@ -296,19 +297,6 @@ export const getPublicCourseById = async (id) => {
                     fullName: true,
                     avatar: true,
                     bio: true,
-                },
-            },
-            liveSessions: {
-                where: { status: { in: ['UPCOMING', 'ONGOING'] }, type: 'GROUP' },
-                orderBy: { startTime: 'asc' },
-                select: {
-                    id: true,
-                    title: true,
-                    type: true,
-                    status: true,
-                    startTime: true,
-                    endTime: true,
-                    price: true,
                 },
             },
             pricingTiers: {
@@ -339,17 +327,8 @@ export const getPublicCourseById = async (id) => {
     });
     if (!course)
         throw new AppError('Course not found.', 404);
-    const homeworks = course.homeworks.map((hw) => ({
-        id: hw.id,
-        title: hw.title,
-        dueDate: hw.dueDate,
-        unitId: hw.unitId,
-        lessonIds: hw.lessons.map((link) => link.lessonId),
-    }));
-    const { homeworks: _hw, ...rest } = course;
     return {
-        ...rest,
-        homeworks,
+        ...course,
         paymentInstructions: PAYMENT_CONFIG,
     };
 };

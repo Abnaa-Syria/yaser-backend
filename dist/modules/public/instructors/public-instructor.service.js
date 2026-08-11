@@ -1,10 +1,25 @@
 import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
-import { userHasRoleName } from '../../../utils/role-query.js';
+import { courseOwnerRoleFilter, getPlatformInstructorId } from '../../../config/platform-instructor.js';
+import { platformFeatures } from '../../../config/features.config.js';
+import { notDeleted } from '../../../utils/soft-delete.js';
 export const getAllInstructors = async (query) => {
     const { page = '1', limit = '10', search } = query;
     const skip = (Number(page) - 1) * Number(limit);
-    const where = userHasRoleName('INSTRUCTOR');
+    const where = {
+        ...courseOwnerRoleFilter(),
+        isActive: true,
+    };
+    if (!platformFeatures.multiInstructor) {
+        where.AND = [
+            {
+                OR: [
+                    { coursesInstructed: { some: {} } },
+                    { availabilities: { some: { status: 'AVAILABLE', startTime: { gte: new Date() } } } },
+                ],
+            },
+        ];
+    }
     if (search) {
         where.OR = [{ fullName: { contains: search } }, { bio: { contains: search } }];
     }
@@ -36,12 +51,28 @@ export const getAllInstructors = async (query) => {
     };
 };
 export const getPublicInstructors = getAllInstructors;
+export const getPlatformOwnerPublicProfile = async () => {
+    const id = await getPlatformInstructorId();
+    if (!id)
+        throw new AppError('Platform instructor is not configured.', 404);
+    return getInstructorById(id);
+};
 /**
- * Get instructor profile by ID
+ * Get instructor profile by ID.
+ * Accepts the course owner even when they are SUPER_ADMIN (single-instructor platform).
  */
 export const getInstructorById = async (id) => {
     const instructor = await prisma.user.findFirst({
-        where: { id, ...userHasRoleName('INSTRUCTOR'), isActive: true },
+        where: {
+            id,
+            isActive: true,
+            deletedAt: null,
+            OR: [
+                courseOwnerRoleFilter(),
+                { coursesInstructed: { some: {} } },
+                { availabilities: { some: {} } },
+            ],
+        },
         select: {
             id: true,
             fullName: true,
@@ -63,14 +94,27 @@ export const getInstructorById = async (id) => {
         throw new AppError('Instructor not found.', 404);
     return instructor;
 };
-/** Alias for controller compatibility */
-export const getPublicInstructorProfile = getInstructorById;
+/** Alias for controller compatibility — supports `platform-owner` shortcut. */
+export const getPublicInstructorProfile = async (id) => {
+    if (id === 'platform-owner')
+        return getPlatformOwnerPublicProfile();
+    return getInstructorById(id);
+};
 /**
  * Get courses taught by an instructor
  */
 export const getInstructorCourses = async (id) => {
+    const instructorId = id === 'platform-owner' ? await getPlatformInstructorId() : id;
+    if (!instructorId)
+        throw new AppError('Instructor not found.', 404);
     return prisma.course.findMany({
-        where: { isActive: true, instructorId: id },
+        where: {
+            ...notDeleted(),
+            isActive: true,
+            instructorId,
+            publishStatus: 'PUBLISHED',
+            status: 'APPROVED',
+        },
         select: {
             id: true,
             title: true,
@@ -85,8 +129,11 @@ export const getInstructorCourses = async (id) => {
  * Get reviews for an instructor
  */
 export const getInstructorReviews = async (id) => {
+    const instructorId = id === 'platform-owner' ? await getPlatformInstructorId() : id;
+    if (!instructorId)
+        throw new AppError('Instructor not found.', 404);
     return prisma.instructorReview.findMany({
-        where: { instructorId: id, isVisible: true },
+        where: { instructorId, isVisible: true },
         include: {
             student: { select: { fullName: true, avatar: true } },
         },
@@ -96,7 +143,16 @@ export const getInstructorReviews = async (id) => {
 /** Upcoming bookable slots for a specific instructor (public catalog). */
 export const getInstructorAvailableSlots = async (id, limit = 24) => {
     const instructor = await prisma.user.findFirst({
-        where: { id, ...userHasRoleName('INSTRUCTOR'), isActive: true },
+        where: {
+            id,
+            isActive: true,
+            deletedAt: null,
+            OR: [
+                courseOwnerRoleFilter(),
+                { coursesInstructed: { some: {} } },
+                { availabilities: { some: {} } },
+            ],
+        },
         select: { id: true },
     });
     if (!instructor)

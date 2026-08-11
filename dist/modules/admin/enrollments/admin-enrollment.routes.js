@@ -9,5 +9,7 @@ router.use(protect);
 router.use(requirePermission('enrollment:manage'));
 router.get('/', validate(adminValidation.listEnrollmentsSchema), adminController.getAllEnrollments);
 router.post('/', validate(adminValidation.createEnrollmentSchema), adminController.createEnrollment);
+router.patch('/:id', validate(adminValidation.updateEnrollmentExpirySchema), adminController.updateEnrollmentExpiry);
+router.delete('/:id', validate(adminValidation.enrollmentIdParamSchema), adminController.revokeEnrollment);
 export default router;
 //# sourceMappingURL=admin-enrollment.routes.js.map

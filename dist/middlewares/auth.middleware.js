@@ -42,4 +42,28 @@ export const protect = catchAsync(async (req, res, next) => {
     };
     next();
 });
+/** Attach user when a valid Bearer token is present; never fail for guests. */
+export const optionalProtect = catchAsync(async (req, _res, next) => {
+    let token;
+    if (req.headers.authorization?.startsWith('Bearer')) {
+        token = req.headers.authorization.split(' ')[1];
+    }
+    if (!token)
+        return next();
+    try {
+        const decoded = verifyToken({ token });
+        const currentUser = await prisma.user.findFirst({
+            where: notDeleted({ id: decoded.userId }),
+            include: userAuthInclude,
+        });
+        if (currentUser?.isActive) {
+            const resolvedPermissions = resolvePermissions(currentUser.role, currentUser.userPermissions);
+            req.user = { ...currentUser, resolvedPermissions };
+        }
+    }
+    catch {
+        // ignore invalid/expired tokens for optional auth
+    }
+    next();
+});
 //# sourceMappingURL=auth.middleware.js.map

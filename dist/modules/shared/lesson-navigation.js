@@ -1,9 +1,11 @@
 import { prisma } from '../../prisma.js';
+import { lessonHasVideo } from './lesson-video.js';
 const lessonWithHierarchySelect = {
     id: true,
     title: true,
     order: true,
     videoUrl: true,
+    vdoCipherVideoId: true,
     section: {
         select: {
             id: true,
@@ -29,7 +31,7 @@ function shapeLessonNavItem(lesson, currentLessonId, completedLessonIds) {
         unitId: lesson.section.unit.id,
         unitTitle: lesson.section.unit.title,
         unitOrder: lesson.section.unit.order,
-        hasVideo: Boolean(lesson.videoUrl?.trim()),
+        hasVideo: lessonHasVideo(lesson),
         status,
     };
 }
@@ -79,7 +81,7 @@ export async function getLessonNavigation(courseId, currentLessonId, studentId, 
                 unitId: current.section.unit.id,
                 unitTitle: current.section.unit.title,
                 unitOrder: current.section.unit.order,
-                hasVideo: Boolean(current.videoUrl?.trim()),
+                hasVideo: lessonHasVideo(current),
             }
             : null,
         previous,

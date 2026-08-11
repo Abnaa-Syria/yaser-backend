@@ -5,7 +5,6 @@ export const updateProfileSchema = z.object({
         phone: z.string().regex(/^\+?[0-9]{7,15}$/, 'Invalid phone number format').optional(),
         bio: z.string().max(500).optional(),
         experience: z.number().int().min(0).optional(),
-        academicLevel: z.string().optional().nullable(),
     }),
 });
 const avatarValueSchema = z.union([
@@ -16,6 +15,8 @@ const avatarValueSchema = z.union([
         .min(1)
         .max(600000)
         .refine((s) => {
+        if (s.startsWith('/uploads/'))
+            return true;
         try {
             const u = new URL(s);
             return u.protocol === 'http:' || u.protocol === 'https:' || u.protocol === 'data:';

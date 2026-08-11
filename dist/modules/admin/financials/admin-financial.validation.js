@@ -1,4 +1,12 @@
 import { z } from 'zod';
+import { PLATFORM_CURRENCY } from '../../../config/currency.js';
+import { optionalNullableMediaUrl } from '../../../utils/mediaUrl.js';
+const platformCurrencySchema = z
+    .string()
+    .min(3)
+    .max(8)
+    .optional()
+    .transform(() => PLATFORM_CURRENCY);
 export const packageIdParamSchema = z.object({
     params: z.object({
         id: z.string().uuid('Invalid package ID format'),
@@ -42,10 +50,10 @@ export const createPackageSchema = z.object({
         shortDescriptionAr: z.string().optional(),
         description: z.string().optional(),
         descriptionAr: z.string().optional(),
-        coverImage: z.string().url().optional(),
+        coverImage: optionalNullableMediaUrl,
         price: z.number().nonnegative(),
         originalPrice: z.number().nonnegative().optional(),
-        currency: z.string().min(3).max(8).optional(),
+        currency: platformCurrencySchema,
         isActive: z.boolean().optional(),
         publishStatus: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
         isFeatured: z.boolean().optional(),
@@ -58,7 +66,7 @@ export const createPackageSchema = z.object({
             labelAr: z.string().optional(),
             price: z.number().nonnegative(),
             originalPrice: z.number().nonnegative().optional(),
-            currency: z.string().min(3).max(8).optional(),
+            currency: platformCurrencySchema,
             durationDays: z.number().int().positive().nullable().optional(),
             durationValue: z.number().int().positive().nullable().optional(),
             durationUnit: z.enum(['DAY', 'WEEK', 'MONTH', 'YEAR', 'LIFETIME']).nullable().optional(),
@@ -81,10 +89,10 @@ export const updatePackageSchema = z.object({
         shortDescriptionAr: z.string().optional(),
         description: z.string().optional(),
         descriptionAr: z.string().optional(),
-        coverImage: z.string().url().optional(),
+        coverImage: optionalNullableMediaUrl,
         price: z.number().nonnegative().optional(),
         originalPrice: z.number().nonnegative().optional(),
-        currency: z.string().min(3).max(8).optional(),
+        currency: platformCurrencySchema,
         isActive: z.boolean().optional(),
         publishStatus: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
         isFeatured: z.boolean().optional(),
@@ -98,7 +106,7 @@ export const updatePackageSchema = z.object({
             labelAr: z.string().optional(),
             price: z.number().nonnegative(),
             originalPrice: z.number().nonnegative().optional(),
-            currency: z.string().min(3).max(8).optional(),
+            currency: platformCurrencySchema,
             durationDays: z.number().int().positive().nullable().optional(),
             durationValue: z.number().int().positive().nullable().optional(),
             durationUnit: z.enum(['DAY', 'WEEK', 'MONTH', 'YEAR', 'LIFETIME']).nullable().optional(),

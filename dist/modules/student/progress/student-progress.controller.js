@@ -9,8 +9,11 @@ export const markAsCompleted = catchAsync(async (req, res) => {
 });
 export const trackLessonAccess = catchAsync(async (req, res) => {
     const lessonId = String(req.params.lessonId);
-    const { watchPercentage, courseId } = req.body;
-    const data = await progressService.trackAccess(req.user.id, lessonId, watchPercentage, courseId);
+    const { watchPercentage, courseId, lastWatchedPosition, timeSpentDelta } = req.body;
+    const data = await progressService.trackAccess(req.user.id, lessonId, watchPercentage, courseId, {
+        lastWatchedPosition,
+        timeSpentDelta,
+    });
     successResponse({ res, data });
 });
 export const getResumeState = catchAsync(async (req, res) => {

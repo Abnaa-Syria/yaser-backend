@@ -1,11 +1,12 @@
 import { z } from 'zod';
+import { requiredMediaUrl } from '../../../utils/mediaUrl.js';
 export const createResourceSchema = z.object({
     params: z.object({
         lessonId: z.string().uuid(),
     }),
     body: z.object({
         title: z.string().min(3).max(255),
-        fileUrl: z.string().url(),
+        fileUrl: requiredMediaUrl,
         fileType: z.string().optional(),
     }),
 });

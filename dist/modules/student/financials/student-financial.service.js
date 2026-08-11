@@ -30,7 +30,6 @@ export const createCoursePurchasePayment = async (studentId, courseId, data) => 
             where: {
                 studentId,
                 courseId,
-                liveSessionId: null,
                 availabilityId: null,
                 subscriptionId: null,
                 status: 'PENDING',
@@ -308,43 +307,30 @@ export const createPrivateSessionPayment = async (studentId, availabilityId, dat
         return { payment, reusedPending: false, slot };
     });
 };
-/** Fulfill private session payment: create LiveSession after admin approval. */
+/** Fulfill private session payment: mark availability booked after admin approval. */
 export const fulfillPrivateSessionPaymentTx = async (tx, paymentId) => {
     const payment = await tx.payment.findUnique({
         where: { id: paymentId },
         select: {
             id: true,
-            studentId: true,
-            amount: true,
             availabilityId: true,
-            liveSessionId: true,
             status: true,
         },
     });
-    if (!payment?.availabilityId || payment.liveSessionId)
+    if (!payment?.availabilityId)
         return null;
     const slot = await tx.instructorAvailability.findUnique({
         where: { id: payment.availabilityId },
     });
     if (!slot)
         return null;
-    const session = await tx.liveSession.create({
-        data: {
-            type: 'PRIVATE',
-            status: 'UPCOMING',
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            instructorId: slot.instructorId,
-            studentId: payment.studentId,
-            price: payment.amount,
-            title: `Private session with instructor`,
-        },
-    });
-    await tx.payment.update({
-        where: { id: paymentId },
-        data: { liveSessionId: session.id },
-    });
-    return session;
+    if (slot.status !== 'BOOKED') {
+        await tx.instructorAvailability.update({
+            where: { id: slot.id },
+            data: { status: 'BOOKED' },
+        });
+    }
+    return { availabilityId: slot.id };
 };
 /**
  * Get student's payments
@@ -358,7 +344,6 @@ export const getMyPayments = async (studentId) => {
             coursePackage: { select: { id: true, title: true, titleAr: true } },
             pricingTier: { select: { id: true, name: true, nameAr: true, price: true, durationDays: true } },
             coursePackagePricingTier: { select: { id: true, name: true, nameAr: true, price: true, durationDays: true } },
-            liveSession: { select: { title: true, type: true } },
         },
     });
 };
@@ -439,70 +424,4 @@ export const getMyPackageBalances = async (studentId) => {
     }));
 };
 export const getMySubscriptions = getMyPackageBalances;
-export const createLiveSessionPurchasePayment = async (studentId, liveSessionId, data) => {
-    return prisma.$transaction(async (tx) => {
-        const session = await tx.liveSession.findUnique({
-            where: { id: liveSessionId },
-            select: {
-                id: true,
-                title: true,
-                price: true,
-                isFreeForAll: true,
-            },
-        });
-        if (!session)
-            throw new AppError('Live session not found.', 404);
-        const existingPayment = await tx.payment.findFirst({
-            where: {
-                studentId,
-                liveSessionId,
-                status: { in: ['PENDING', 'PAID'] },
-            },
-        });
-        if (existingPayment) {
-            if (existingPayment.status === 'PAID') {
-                throw new AppError('You have already booked a seat for this session.', 409);
-            }
-            return { payment: existingPayment, reusedPending: true };
-        }
-        const price = session.isFreeForAll ? 0 : Number(session.price ?? 0);
-        if (Number.isNaN(price) || price < 0) {
-            throw new AppError('Session price is not configured.', 400);
-        }
-        let amount = price;
-        if (data.amount != null) {
-            amount = Number(data.amount);
-        }
-        // Free Live Session Booking (or isFreeForAll)
-        if (amount === 0) {
-            const payment = await tx.payment.create({
-                data: {
-                    studentId,
-                    liveSessionId,
-                    amount: 0,
-                    paymentMethod: 'FREE',
-                    receiptUrl: 'INSTANT_FREE_ENROLLMENT',
-                    status: 'PAID',
-                    paidAt: new Date(),
-                },
-            });
-            return { payment, reusedPending: false, enrolledInstantly: true };
-        }
-        // Paid Live Session Flow
-        if (!data.receiptUrl) {
-            throw new AppError('Receipt URL is required for paid live session booking.', 400);
-        }
-        const payment = await tx.payment.create({
-            data: {
-                studentId,
-                liveSessionId,
-                amount,
-                paymentMethod: data.paymentMethod,
-                receiptUrl: data.receiptUrl,
-                status: 'PENDING',
-            },
-        });
-        return { payment, reusedPending: false, enrolledInstantly: false };
-    });
-};
 //# sourceMappingURL=student-financial.service.js.map

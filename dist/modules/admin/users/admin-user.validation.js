@@ -4,6 +4,15 @@ export const userIdParamSchema = z.object({
         id: z.string().uuid('Invalid user ID format'),
     }),
 });
+export const createAdminUserSchema = z.object({
+    body: z.object({
+        fullName: z.string().min(3).max(100),
+        email: z.string().email('Invalid email address'),
+        password: z.string().min(8, 'Password must be at least 8 characters'),
+        roleId: z.string().uuid('Invalid role ID format'),
+        phone: z.string().regex(/^\+?[0-9]{7,15}$/, 'Invalid phone number format').optional(),
+    }),
+});
 export const updateAdminUserSchema = z.object({
     params: z.object({
         id: z.string().uuid('Invalid user ID format'),

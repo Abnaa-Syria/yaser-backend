@@ -99,6 +99,18 @@ export async function updateStudyPlanItem(studentId, planId, itemId, data) {
                     : existing.completedAt,
         },
         include: linkedContentInclude,
+    }).then(async (updated) => {
+        if (data.status === 'DONE' && existing.status !== 'DONE') {
+            try {
+                const { awardStudyPlanItemXp } = await import('../gamification/gamification.service.js');
+                const xp = await awardStudyPlanItemXp(studentId, itemId);
+                return { ...updated, xp };
+            }
+            catch {
+                return updated;
+            }
+        }
+        return updated;
     });
 }
 export async function deleteStudyPlanItem(studentId, planId, itemId) {

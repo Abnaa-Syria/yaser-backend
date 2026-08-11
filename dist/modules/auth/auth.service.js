@@ -1,9 +1,12 @@
 import crypto from 'crypto';
 import { prisma } from '../../prisma.js';
 import { AppError } from '../../utils/AppError.js';
+import { APP_BRAND } from '../../config/brand.config.js';
 import { hashPassword, comparePassword, verifyPassword } from '../../utils/security/hash.js';
-import { generateToken, verifyToken } from '../../utils/security/jwt.js';
+import { generateToken, verifyToken, getJwtRefreshSecret } from '../../utils/security/jwt.js';
 import { createUserSession, deactivateAllUserSessions } from '../../services/session.service.js';
+import { sendTemplatedEmail } from '../../utils/mail.js';
+import { allocateUniqueUsername, usernameFromIdentity, normalizeUsername } from '../../utils/username.js';
 const REFRESH_TOKEN_EXPIRES_MS = 7 * 24 * 60 * 60 * 1000;
 const getStudentRoleId = async () => {
     const role = await prisma.role.findUnique({ where: { name: 'STUDENT' } });
@@ -15,12 +18,11 @@ const generateAuthTokens = (userId, roleName) => {
     const accessToken = generateToken({
         payload: { userId, role: roleName },
         expiresIn: process.env.JWT_EXPIRE || '15m',
-        secret: process.env.JWT_SECRET,
     });
     const refreshToken = generateToken({
         payload: { userId },
         expiresIn: '7d',
-        secret: process.env.JWT_REFRESH_SECRET,
+        secret: getJwtRefreshSecret(),
     });
     return { accessToken, refreshToken };
 };
@@ -42,14 +44,15 @@ export const registerUser = async (data) => {
     }
     const hashedPassword = await hashPassword(data.password);
     const studentRoleId = await getStudentRoleId();
+    const username = await allocateUniqueUsername(usernameFromIdentity({ email, fullName: data.fullName }));
     const user = await prisma.user.create({
         data: {
             fullName: data.fullName.trim(),
             email,
+            username,
             password: hashedPassword,
             phone: data.phone?.trim() || undefined,
             roleId: studentRoleId,
-            academicLevel: data.academicLevel || null,
         },
         include: {
             role: true,
@@ -63,13 +66,23 @@ export const registerUser = async (data) => {
         os: data.os,
     });
     await persistRefreshToken(user.id, tokens.refreshToken, sessionId);
+    await issueEmailVerification(user.id, user.email, user.fullName);
     const { password, ...userWithoutPassword } = user;
     return { user: userWithoutPassword, tokens };
 };
 export const loginUser = async (data) => {
-    const email = data.identifier.trim().toLowerCase();
-    const user = await prisma.user.findUnique({
-        where: { email },
+    const identifier = data.identifier.trim();
+    const identifierLower = identifier.toLowerCase();
+    const looksLikeEmail = identifierLower.includes('@');
+    const user = await prisma.user.findFirst({
+        where: {
+            deletedAt: null,
+            ...(looksLikeEmail
+                ? { email: identifierLower }
+                : {
+                    OR: [{ username: normalizeUsername(identifier) }, { email: identifierLower }],
+                }),
+        },
         include: {
             role: {
                 include: {
@@ -80,11 +93,11 @@ export const loginUser = async (data) => {
         },
     });
     if (!user) {
-        throw new AppError('Invalid email or password.', 401);
+        throw new AppError('Invalid email/username or password.', 401);
     }
     const passwordCheck = await verifyPassword(data.password, user.password);
     if (!passwordCheck.valid) {
-        throw new AppError('Invalid email or password.', 401);
+        throw new AppError('Invalid email/username or password.', 401);
     }
     if (!user.isActive) {
         throw new AppError('Your account has been deactivated. Please contact support.', 403);
@@ -138,7 +151,7 @@ export const refreshAuthTokens = async (oldRefreshToken) => {
     try {
         decoded = verifyToken({
             token: oldRefreshToken,
-            secret: process.env.JWT_REFRESH_SECRET,
+            secret: getJwtRefreshSecret(),
         });
     }
     catch {
@@ -212,10 +225,24 @@ export const forgotPassword = async (email) => {
             passwordResetExpires: new Date(Date.now() + 10 * 60 * 1000),
         },
     });
+    const resetLink = `${APP_BRAND.siteUrl.replace(/\/$/, '')}/reset-password/${resetToken}`;
+    const mailResult = await sendTemplatedEmail({
+        to: user.email,
+        templateName: 'PASSWORD_RESET',
+        vars: {
+            student_name: user.fullName || user.email,
+            reset_link: resetLink,
+        },
+        fallbackSubject: `Reset your ${APP_BRAND.name} password`,
+        fallbackHtml: `<p>Hello ${user.fullName || 'there'},</p><p>Reset your password using this link (valid for 10 minutes):</p><p><a href="${resetLink}">${resetLink}</a></p>`,
+    });
     const isDev = process.env.NODE_ENV === 'development';
+    if (isDev && !mailResult.sent) {
+        console.info('[mail] Password reset link (dev fallback):', resetLink);
+    }
     return {
         message: 'If this email exists, a reset link has been sent.',
-        ...(isDev && { resetToken }),
+        ...(isDev && { resetToken, resetLink, emailSent: mailResult.sent }),
     };
 };
 export const resetPassword = async (resetToken, newPassword) => {
@@ -240,5 +267,71 @@ export const resetPassword = async (resetToken, newPassword) => {
     });
     await deactivateAllUserSessions(user.id);
     return { message: 'Password reset successfully. Please log in with your new password.' };
+};
+export const issueEmailVerification = async (userId, email, fullName) => {
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(verifyToken).digest('hex');
+    await prisma.user.update({
+        where: { id: userId },
+        data: {
+            emailVerificationToken: hashedToken,
+            emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        },
+    });
+    const verifyLink = `${APP_BRAND.siteUrl.replace(/\/$/, '')}/verify-email/${verifyToken}`;
+    const mailResult = await sendTemplatedEmail({
+        to: email,
+        templateName: 'EMAIL_VERIFICATION',
+        vars: {
+            student_name: fullName || email,
+            verify_link: verifyLink,
+        },
+        fallbackSubject: `Verify your ${APP_BRAND.name} email`,
+        fallbackHtml: `<p>Hello ${fullName || 'there'},</p><p>Verify your email: <a href="${verifyLink}">${verifyLink}</a></p>`,
+    });
+    const isDev = process.env.NODE_ENV === 'development';
+    if (isDev && !mailResult.sent) {
+        console.info('[mail] Email verification link (dev fallback):', verifyLink);
+    }
+    return {
+        emailSent: mailResult.sent,
+        ...(isDev && { verifyToken, verifyLink }),
+    };
+};
+export const verifyEmail = async (token) => {
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await prisma.user.findFirst({
+        where: {
+            emailVerificationToken: hashedToken,
+            emailVerificationExpires: { gt: new Date() },
+        },
+    });
+    if (!user)
+        throw new AppError('Invalid or expired verification token.', 400);
+    await prisma.user.update({
+        where: { id: user.id },
+        data: {
+            emailVerifiedAt: new Date(),
+            emailVerificationToken: null,
+            emailVerificationExpires: null,
+        },
+    });
+    return { message: 'Email verified successfully.' };
+};
+export const resendEmailVerification = async (email) => {
+    const user = await prisma.user.findUnique({
+        where: { email: email.trim().toLowerCase() },
+    });
+    if (!user) {
+        return { message: 'If this email exists, a verification link has been sent.' };
+    }
+    if (user.emailVerifiedAt) {
+        return { message: 'Email is already verified.' };
+    }
+    const issued = await issueEmailVerification(user.id, user.email, user.fullName);
+    return {
+        message: 'If this email exists, a verification link has been sent.',
+        ...issued,
+    };
 };
 //# sourceMappingURL=auth.service.js.map

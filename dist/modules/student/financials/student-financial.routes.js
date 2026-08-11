@@ -19,10 +19,9 @@ router.post('/payment-proof', restrictToStudent, paymentProofUpload.single('proo
 router.post('/checkout/course/:courseId', restrictToStudent, validate(financialValidation.courseCheckoutSchema), financialController.courseCheckout);
 router.post('/checkout/package/:packageId', restrictToStudent, validate(financialValidation.packageCheckoutSchema), financialController.packageCheckout);
 router.post('/checkout/private/:availabilityId', restrictToStudent, requireFeature('privateBooking'), validate(financialValidation.privateCheckoutSchema), financialController.privateCheckout);
-router.post('/checkout/live-session/:liveSessionId', restrictToStudent, requireFeature('liveSessions'), validate(financialValidation.liveSessionCheckoutSchema), financialController.liveSessionCheckout);
 router.get('/my-payments', financialController.getMyPayments);
 router.get('/my-courses', financialController.getMyPurchasedCourses);
-router.get('/my-package-balances', financialController.getMyPurchasedCourses);
-router.get('/my-subscriptions', financialController.getMyPurchasedCourses);
+router.get('/my-package-balances', financialController.getMyPackageBalances);
+router.get('/my-subscriptions', financialController.getMySubscriptions);
 export default router;
 //# sourceMappingURL=student-financial.routes.js.map

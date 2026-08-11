@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { mediaUrlOrEmpty, requiredMediaUrl } from '../../../utils/mediaUrl.js';
 const localizedString = z.union([
     z.string(),
     z.object({
@@ -11,6 +12,7 @@ const cmsSectionSchema = z.object({
     heading: z.string(),
     body: z.string(),
     listItems: z.array(z.string()).optional(),
+    imageUrl: z.string().max(2000).optional(),
 });
 const postContentSchema = z.union([
     z.object({
@@ -43,6 +45,7 @@ export const aboutUsSchema = z.object({
         mission: localizedString,
         vision: localizedString,
         description: localizedString,
+        teamPhoto: z.string().max(2000).optional(),
     })
 });
 export const heroSchema = z.object({
@@ -59,6 +62,13 @@ export const createSectionSchema = z.object({
         isVisible: z.boolean().optional(),
         order: z.number().int().optional()
     })
+});
+export const upsertSectionByKeySchema = z.object({
+    body: z.object({
+        content: z.record(z.string(), z.any()),
+        isVisible: z.boolean().optional(),
+        order: z.number().int().optional(),
+    }),
 });
 export const updateSectionSchema = z.object({
     body: z.object({
@@ -135,7 +145,7 @@ export const createPostSchema = z.object({
         slug: z.string().min(3),
         content: postContentSchema,
         contentAr: postContentSchema.optional(),
-        thumbnail: z.union([z.string().url(), z.literal('')]).optional(),
+        thumbnail: mediaUrlOrEmpty.optional(),
         published: z.boolean().optional(),
         category: z.string().optional(),
     })
@@ -148,7 +158,7 @@ export const updatePostSchema = z.object({
         slug: z.string().min(3).optional(),
         content: postContentSchema.optional(),
         contentAr: postContentSchema.optional().nullable(),
-        thumbnail: z.union([z.string().url(), z.literal('')]).optional(),
+        thumbnail: mediaUrlOrEmpty.optional(),
         published: z.boolean().optional(),
         category: z.string().optional(),
     })
@@ -157,7 +167,8 @@ export const updatePostSchema = z.object({
 export const createBannerSchema = z.object({
     body: z.object({
         title: z.string().optional(),
-        imageUrl: z.string().url(),
+        titleAr: z.string().optional().nullable(),
+        imageUrl: requiredMediaUrl,
         link: z.string().max(2048).optional().nullable(),
         isActive: z.boolean().optional(),
         order: z.number().int().optional(),

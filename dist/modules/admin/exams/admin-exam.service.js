@@ -75,7 +75,10 @@ export const addQuestion = async (examId, data) => {
             points: data.points,
             order: data.order,
             options: data.options,
-            correctAnswer: data.correctAnswer
+            correctAnswer: data.correctAnswer,
+            explanation: data.explanation || null,
+            explanationAr: data.explanationAr || null,
+            imageUrl: data.imageUrl || null,
         }
     });
     return question;

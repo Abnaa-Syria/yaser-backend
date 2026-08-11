@@ -85,14 +85,6 @@ export const getInstructorCourseById = async (courseId, instructorId) => {
             instructor: {
                 select: { id: true, fullName: true, email: true, avatar: true },
             },
-            liveSessions: {
-                orderBy: { startTime: 'asc' },
-                include: {
-                    instructor: {
-                        select: { id: true, fullName: true, email: true, avatar: true },
-                    },
-                },
-            },
             units: {
                 orderBy: { order: 'asc' },
                 include: {
@@ -107,16 +99,6 @@ export const getInstructorCourseById = async (courseId, instructorId) => {
                         },
                     },
                 },
-            },
-            homeworks: {
-                include: {
-                    lessons: {
-                        include: {
-                            lesson: { select: { id: true, title: true } }
-                        }
-                    }
-                },
-                orderBy: { createdAt: 'desc' },
             },
             exams: {
                 include: {

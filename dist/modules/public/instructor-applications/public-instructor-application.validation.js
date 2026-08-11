@@ -7,7 +7,7 @@ export const submitInstructorApplicationSchema = z.object({
         specialty: z.string().max(1000).optional(),
         experience: z.string().max(2000).optional(),
         message: z.string().min(10).max(5000),
-        documentUrl: z.string().url().optional(),
+        documentUrl: z.string().min(1).optional(),
     }),
 });
 //# sourceMappingURL=public-instructor-application.validation.js.map

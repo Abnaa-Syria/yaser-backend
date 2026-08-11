@@ -37,8 +37,8 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
     body: z.object({
         identifier: z
-            .string({ message: 'Email is required' })
-            .min(1, 'Email is required'),
+            .string({ message: 'Email or username is required' })
+            .min(1, 'Email or username is required'),
         password: z
             .string({ message: 'Password is required' })
             .min(1, 'Password is required'),
@@ -73,6 +73,16 @@ export const changePasswordSchema = z.object({
     }).refine((data) => data.newPassword === data.confirmNewPassword, {
         message: 'Passwords do not match',
         path: ['confirmNewPassword'],
+    }),
+});
+export const verifyEmailSchema = z.object({
+    body: z.object({
+        token: z.string().min(10).optional(),
+    }),
+});
+export const resendVerificationSchema = z.object({
+    body: z.object({
+        email: z.string().email(),
     }),
 });
 export const otpRequestSchema = z.object({

@@ -1,25 +1,36 @@
+const DEFAULT_ORIGINS = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'https://yaser-usmle.com',
+    'https://www.yaser-usmle.com',
+    'https://alienparts.online',
+    'https://www.alienparts.online',
+];
+function parseAllowedOrigins() {
+    const fromEnv = process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+        : [];
+    return [...new Set([...fromEnv, ...DEFAULT_ORIGINS])];
+}
+/** In development, allow any localhost / 127.0.0.1 Vite port. */
+function isLocalDevOrigin(origin) {
+    if (process.env.NODE_ENV === 'production')
+        return false;
+    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+}
 export const corsOptions = {
     origin: (origin, callback) => {
-        // Fallback to localhost and the production deployment URL if the environment variable is not set
-        const allowedOrigins = process.env.ALLOWED_ORIGINS
-            ? process.env.ALLOWED_ORIGINS.split(',')
-            : [
-                'http://localhost:3000',
-                'http://localhost:5173',
-                'http://localhost:5174',
-                'http://127.0.0.1:5173',
-                'https://yaser-usmle.com',
-                'https://www.yaser-usmle.com'
-            ];
-        // Allow requests with no origin (like mobile apps or curl requests) OR matching origins
-        if (!origin || allowedOrigins.includes(origin)) {
+        const allowedOrigins = parseAllowedOrigins();
+        if (!origin || allowedOrigins.includes(origin) || isLocalDevOrigin(origin)) {
             callback(null, true);
+            return;
         }
-        else {
-            callback(new Error('Blocked by CORS policy'));
-        }
+        callback(new Error('Blocked by CORS policy'));
     },
-    credentials: true, // Required to allow cookies/authorization headers
-    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
 };
 //# sourceMappingURL=cors.config.js.map

@@ -7,7 +7,8 @@ export const isWordPressBcryptHash = (hashedPassword) => {
     return hashedPassword.startsWith('$wp$2y$') || hashedPassword.startsWith('$wp$2b$');
 };
 export const wordpressPasswordInput = (password) => {
-    return crypto.createHmac('sha384', 'wp-sha384').update(password, 'utf8').digest('base64');
+    // WordPress 6.8+: base64_encode(hash_hmac('sha384', trim($password), 'wp-sha384', true))
+    return crypto.createHmac('sha384', 'wp-sha384').update(password.trim(), 'utf8').digest('base64');
 };
 const normalizeBcryptPrefix = (hash) => {
     return hash.startsWith('$2y$') ? `$2b$${hash.slice(4)}` : hash;
@@ -16,7 +17,15 @@ export const compareWordPressPassword = async (password, hashedPassword) => {
     if (!isWordPressBcryptHash(hashedPassword))
         return false;
     const bcryptHash = normalizeBcryptPrefix(hashedPassword.slice(3));
-    return bcrypt.compare(wordpressPasswordInput(password), bcryptHash);
+    // WordPress hashes with trim(); some check paths historically omitted trim — try both.
+    if (await bcrypt.compare(wordpressPasswordInput(password), bcryptHash))
+        return true;
+    if (password !== password.trim()) {
+        const untrimmed = crypto.createHmac('sha384', 'wp-sha384').update(password, 'utf8').digest('base64');
+        if (await bcrypt.compare(untrimmed, bcryptHash))
+            return true;
+    }
+    return false;
 };
 export const verifyPassword = async (password, hashedPassword) => {
     if (isWordPressBcryptHash(hashedPassword)) {

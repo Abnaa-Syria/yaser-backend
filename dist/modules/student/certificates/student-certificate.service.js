@@ -46,6 +46,13 @@ export const claimCertificate = async (studentId, courseId) => {
             course: { select: { title: true } },
         },
     });
+    try {
+        const { awardCertificateXp } = await import('../gamification/gamification.service.js');
+        await awardCertificateXp(studentId, certificate.id, courseId);
+    }
+    catch (err) {
+        console.error('[gamification] certificate XP failed', err);
+    }
     const pdfBuffer = await persistCertificatePdf(certificate);
     return pdfBuffer;
 };

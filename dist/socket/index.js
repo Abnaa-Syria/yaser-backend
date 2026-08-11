@@ -4,15 +4,6 @@ import { prisma } from '../prisma.js';
 import { notDeleted } from '../utils/soft-delete.js';
 import { getRoleName } from '../utils/role-query.js';
 let io = null;
-function roomStudent(studentId) {
-    return `student:${studentId}`;
-}
-function roomSession(sessionId) {
-    return `session:${sessionId}`;
-}
-function roomAdminStudent(studentId) {
-    return `admin:student:${studentId}`;
-}
 export function initSocket(httpServer) {
     io = new Server(httpServer, {
         cors: {
@@ -49,47 +40,19 @@ export function initSocket(httpServer) {
     });
     io.on('connection', (socket) => {
         const userId = socket.data.userId;
-        const role = socket.data.role;
         socket.join(`user:${userId}`);
-        if (role === 'STUDENT') {
-            socket.join(roomStudent(userId));
-        }
-        socket.on('attendance:join-session', (sessionId) => {
-            if (role === 'INSTRUCTOR' && typeof sessionId === 'string' && sessionId) {
-                socket.join(roomSession(sessionId));
-            }
-        });
-        socket.on('attendance:leave-session', (sessionId) => {
-            if (typeof sessionId === 'string' && sessionId) {
-                socket.leave(roomSession(sessionId));
-            }
-        });
-        socket.on('attendance:watch-student', (studentId) => {
-            if ((role === 'ADMIN' || role === 'INSTRUCTOR') && typeof studentId === 'string' && studentId) {
-                socket.join(roomAdminStudent(studentId));
-            }
-        });
-        socket.on('attendance:unwatch-student', (studentId) => {
-            if (typeof studentId === 'string' && studentId) {
-                socket.leave(roomAdminStudent(studentId));
-            }
-        });
     });
     return io;
 }
 export function getIO() {
     return io;
 }
-export function emitAttendanceUpdated(payload) {
-    if (!io)
-        return;
-    io.to(roomStudent(payload.studentId)).emit('attendance:updated', payload);
-    io.to(roomAdminStudent(payload.studentId)).emit('attendance:updated', payload);
-    io.to(roomSession(payload.sessionId)).emit('attendance:session:updated', payload);
+/** @deprecated Live attendance was removed. */
+export function emitAttendanceUpdated(_payload) {
+    return;
 }
-export function emitSessionAttendanceRefresh(sessionId, detail) {
-    if (!io)
-        return;
-    io.to(roomSession(sessionId)).emit('attendance:session:detail', { sessionId, detail });
+/** @deprecated Live attendance was removed. */
+export function emitSessionAttendanceRefresh(_sessionId, _detail) {
+    return;
 }
 //# sourceMappingURL=index.js.map

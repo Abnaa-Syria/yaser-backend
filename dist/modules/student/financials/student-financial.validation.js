@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { requiredMediaUrl } from '../../../utils/mediaUrl.js';
 export const courseCheckoutSchema = z.object({
     params: z.object({
         courseId: z.string().uuid('Invalid course id'),
@@ -29,17 +30,7 @@ export const privateCheckoutSchema = z.object({
     }),
     body: z.object({
         paymentMethod: z.string().min(1, 'Payment method is required'),
-        receiptUrl: z.string().url('Invalid receipt URL'),
-    }),
-});
-export const liveSessionCheckoutSchema = z.object({
-    params: z.object({
-        liveSessionId: z.string().uuid('Invalid live session id'),
-    }),
-    body: z.object({
-        paymentMethod: z.string().min(1, 'Payment method is required'),
-        receiptUrl: z.string().optional(),
-        amount: z.number().min(0).optional(),
+        receiptUrl: requiredMediaUrl,
     }),
 });
 //# sourceMappingURL=student-financial.validation.js.map

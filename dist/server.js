@@ -1,27 +1,37 @@
+import 'dotenv/config';
 import { createServer } from 'http';
 import express from 'express';
 import morgan from 'morgan';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { corsOptions } from './config/cors.config.js';
 import { APP_BRAND } from './config/brand.config.js';
 // Notice: Rate limiters and specific router middleware should be attached in routes/index.ts where applicable.
 import { apiLimiter } from './middlewares/rateLimit.middleware.js';
-dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy (e.g. Nginx, Cloudflare)
 const PORT = process.env.PORT || 3000;
 console.log(PORT);
-// Security middleware
-app.use(helmet());
+// Security middleware — CORP must be cross-origin so the SPA on another subdomain can read API responses.
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
-app.use('/uploads', apiLimiter, express.static(path.join(__dirname, '../uploads'), {
+app.use('/uploads', apiLimiter, (req, res, next) => {
+    // Deny public access to sensitive folders — use authenticated download endpoints.
+    if (/^\/?(payment-proofs|payouts)(\/|$)/i.test(req.path)) {
+        return res.status(401).json({
+            status: 'fail',
+            message: 'Authentication required to access this file',
+        });
+    }
+    next();
+}, express.static(path.join(__dirname, '../uploads'), {
     dotfiles: 'deny',
     index: false,
     setHeaders: (res, filePath) => {
@@ -29,9 +39,6 @@ app.use('/uploads', apiLimiter, express.static(path.join(__dirname, '../uploads'
         res.setHeader('Cache-Control', /[\\/]uploads[\\/]branding[\\/]/.test(filePath)
             ? 'public, max-age=86400'
             : 'private, max-age=300');
-        if (/[\\/]uploads[\\/](payment-proofs|homework|payouts)[\\/]/.test(filePath)) {
-            res.setHeader('Content-Disposition', 'attachment');
-        }
     },
 }));
 // Apply general rate limiter to all API routes
@@ -57,5 +64,11 @@ import { globalErrorHandler } from './middlewares/error.middleware.js';
 app.use(globalErrorHandler);
 httpServer.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
+    import('./bootstrap/ensureRbac.js')
+        .then(({ ensureRbacCatalog }) => ensureRbacCatalog())
+        .catch((err) => console.error('[rbac] failed to ensure catalog', err));
+    import('./jobs/expiry-cron.js')
+        .then(({ startExpiryCron }) => startExpiryCron())
+        .catch((err) => console.error('[expiry-cron] failed to start', err));
 });
 //# sourceMappingURL=server.js.map

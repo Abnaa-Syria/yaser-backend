@@ -1,7 +1,6 @@
 import { z } from 'zod';
+import { optionalMediaUrl, optionalNullableMediaUrl } from '../../../utils/mediaUrl.js';
 const emptyToUndefined = (val) => val === '' || val === null || val === 'null' || val === 'undefined' ? undefined : val;
-const optionalUrl = z.preprocess(emptyToUndefined, z.string().url().optional());
-const optionalNullableUrl = z.preprocess((val) => (val === '' ? null : val), z.string().url().nullable().optional());
 const optionalUuid = z.preprocess(emptyToUndefined, z.string().uuid().optional());
 const optionalNullableUuid = z.preprocess((val) => {
     if (val === '')
@@ -21,13 +20,13 @@ export const createCourseSchema = z.object({
     body: z.object({
         title: z.string().min(3).max(200),
         description: z.string().optional(),
-        thumbnail: optionalUrl,
-        introVideoUrl: optionalUrl,
+        thumbnail: optionalMediaUrl,
+        introVideoUrl: optionalMediaUrl,
         instructorId: optionalUuid,
         categoryId: optionalUuid,
         price: z.number().nonnegative().optional(),
         isLifetimePurchasable: z.boolean().optional(),
-        type: z.enum(['HYBRID', 'RECORDED']).optional(),
+        type: z.enum(['RECORDED']).optional(),
         isActive: z.boolean().optional(),
         targetLevels: z.array(z.string()).optional().nullable(),
         pricingTiers: z.array(z.object({
@@ -45,14 +44,18 @@ export const updateCourseSchema = z.object({
     }),
     body: z.object({
         title: z.string().min(3).max(200).optional(),
-        description: z.string().optional(),
-        thumbnail: optionalUrl,
-        introVideoUrl: optionalNullableUrl,
+        titleAr: z.string().max(200).optional().nullable(),
+        description: z.string().optional().nullable(),
+        descriptionAr: z.string().optional().nullable(),
+        shortDescription: z.string().max(500).optional().nullable(),
+        shortDescriptionAr: z.string().max(500).optional().nullable(),
+        thumbnail: optionalMediaUrl,
+        introVideoUrl: optionalNullableMediaUrl,
         instructorId: optionalNullableUuid,
         categoryId: optionalNullableUuid,
         price: z.number().nonnegative().optional(),
         isLifetimePurchasable: z.boolean().optional(),
-        type: z.enum(['HYBRID', 'RECORDED']).optional(),
+        type: z.enum(['RECORDED']).optional(),
         isActive: z.boolean().optional(),
         targetLevels: z.array(z.string()).optional().nullable(),
         pricingTiers: z.array(z.object({
@@ -107,39 +110,6 @@ export const staffIdParamSchema = z.object({
     params: z.object({
         id: z.string().uuid(),
         staffId: z.string().uuid(),
-    }),
-});
-export const sessionIdParamSchema = z.object({
-    params: z.object({
-        id: z.string().uuid(),
-        sessionId: z.string().uuid(),
-    }),
-});
-export const createSessionSchema = z.object({
-    params: z.object({ id: z.string().uuid() }),
-    body: z.object({
-        title: z.string().optional(),
-        description: z.string().optional(),
-        instructorId: z.string().uuid(),
-        startTime: z.string().datetime(),
-        endTime: z.string().datetime(),
-        meetingUrl: z.string().url().optional(),
-    }),
-});
-export const updateSessionSchema = z.object({
-    params: z.object({
-        id: z.string().uuid(),
-        sessionId: z.string().uuid(),
-    }),
-    body: z.object({
-        title: z.string().optional(),
-        description: z.string().optional(),
-        instructorId: z.string().uuid().optional(),
-        startTime: z.string().datetime().optional(),
-        endTime: z.string().datetime().optional(),
-        meetingUrl: z.string().url().optional().nullable(),
-        recordingUrl: z.string().url().optional().nullable(),
-        status: z.enum(['UPCOMING', 'ONGOING', 'COMPLETED', 'MISSED']).optional(),
     }),
 });
 //# sourceMappingURL=admin-course.validation.js.map

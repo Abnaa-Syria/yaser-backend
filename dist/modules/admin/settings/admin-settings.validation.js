@@ -19,4 +19,21 @@ export const updateEmailTemplateSchema = z.object({
         body: z.string().min(10).optional()
     })
 });
+export const previewEmailTemplateSchema = z.object({
+    body: z.object({
+        id: z.string().uuid().optional(),
+        subject: z.string().min(1).optional(),
+        body: z.string().min(1).optional(),
+        vars: z.record(z.string(), z.string()).optional(),
+    }),
+});
+export const sendTestEmailTemplateSchema = z.object({
+    body: z.object({
+        id: z.string().uuid().optional(),
+        to: z.string().email(),
+        subject: z.string().min(1).optional(),
+        body: z.string().min(1).optional(),
+        vars: z.record(z.string(), z.string()).optional(),
+    }),
+});
 //# sourceMappingURL=admin-settings.validation.js.map

@@ -15,7 +15,6 @@ export const getMyProfile = async (userId) => {
             avatar: true,
             bio: true,
             experience: true,
-            academicLevel: true,
             averageRating: true,
             commissionRate: true,
             createdAt: true,
@@ -36,7 +35,7 @@ export const getMyProfile = async (userId) => {
  */
 export const updateMyProfile = async (userId, data) => {
     // Only allow specific fields to be updated by the user themselves
-    const allowedFields = ['fullName', 'phone', 'bio', 'experience', 'academicLevel'];
+    const allowedFields = ['fullName', 'phone', 'bio', 'experience'];
     const updateData = {};
     Object.keys(data).forEach(key => {
         if (allowedFields.includes(key)) {
@@ -54,7 +53,6 @@ export const updateMyProfile = async (userId, data) => {
             avatar: true,
             bio: true,
             experience: true,
-            academicLevel: true,
             createdAt: true,
             updatedAt: true,
         }

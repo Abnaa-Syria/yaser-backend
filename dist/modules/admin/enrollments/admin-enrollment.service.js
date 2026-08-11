@@ -180,4 +180,31 @@ export const createEnrollment = async (data) => {
     });
     return result;
 };
+/**
+ * Manually adjust the expiry date (or clear it) of an existing enrollment.
+ */
+export const updateEnrollmentExpiry = async (id, expiresAt) => {
+    const existing = await prisma.coursePurchase.findUnique({ where: { id } });
+    if (!existing)
+        throw new AppError('Enrollment not found.', 404);
+    const updated = await prisma.coursePurchase.update({
+        where: { id },
+        data: { expiresAt: expiresAt ? new Date(expiresAt) : null },
+        include: {
+            course: { select: { id: true, title: true } },
+            student: { select: { id: true, fullName: true, email: true } },
+        },
+    });
+    return updated;
+};
+/**
+ * Revoke a student's manually-granted (or purchased) access to a course.
+ */
+export const revokeEnrollment = async (id) => {
+    const existing = await prisma.coursePurchase.findUnique({ where: { id } });
+    if (!existing)
+        throw new AppError('Enrollment not found.', 404);
+    await prisma.coursePurchase.delete({ where: { id } });
+    return { id, revoked: true };
+};
 //# sourceMappingURL=admin-enrollment.service.js.map

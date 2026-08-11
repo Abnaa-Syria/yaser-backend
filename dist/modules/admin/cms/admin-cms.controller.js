@@ -30,6 +30,17 @@ export const createSection = catchAsync(async (req, res) => {
     const data = await cmsService.createSection(req.body);
     successResponse({ res, data, message: 'CMS Section created successfully', statusCode: 201 });
 });
+export const upsertSectionByKey = catchAsync(async (req, res) => {
+    const key = String(req.params.key || '').trim().toUpperCase();
+    if (!key)
+        throw new AppError('Section key is required', 400);
+    const data = await cmsService.upsertSectionByKey(key, {
+        content: req.body.content || {},
+        isVisible: req.body.isVisible,
+        order: req.body.order,
+    });
+    successResponse({ res, data, message: 'CMS Section saved successfully' });
+});
 export const updateSection = catchAsync(async (req, res) => {
     const data = await cmsService.updateSectionById(req.params.id, req.body);
     successResponse({ res, data, message: 'CMS Section updated successfully' });

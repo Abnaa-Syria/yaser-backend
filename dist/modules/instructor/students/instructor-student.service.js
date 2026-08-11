@@ -2,7 +2,6 @@ import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
 import { userHasRoleName } from '../../../utils/role-query.js';
 import { buildStudentPerformanceBundle } from '../../shared/student-performance-aggregate.js';
-import { getStudentAttendanceReport } from '../../shared/attendance-read.service.js';
 export const listInstructorStudents = async (instructorId, query) => {
     const pageNum = Number(query.page) || 1;
     const limitNum = Math.min(Number(query.limit) || 20, 100);
@@ -102,7 +101,7 @@ export const getStudentPerformanceForInstructor = async (instructorId, studentId
             return true;
         return false;
     };
-    const [examSubsRaw, hwSubs, homeworksAssigned, lessonProgressRows, completedSessionsCount] = await Promise.all([
+    const [examSubsRaw, lessonProgressRows] = await Promise.all([
         prisma.examSubmission.findMany({
             where: {
                 studentId,
@@ -130,35 +129,9 @@ export const getStudentPerformanceForInstructor = async (instructorId, studentId
             },
             orderBy: { submittedAt: 'desc' },
         }),
-        prisma.homeworkSubmission.findMany({
-            where: {
-                studentId,
-                homework: { courseId: { in: courseIds } },
-            },
-            include: {
-                homework: {
-                    select: {
-                        id: true,
-                        title: true,
-                        totalPoints: true,
-                        courseId: true,
-                        course: { select: { title: true } },
-                    },
-                },
-            },
-            orderBy: [{ gradedAt: 'desc' }, { submittedAt: 'desc' }],
-        }),
-        prisma.homework.count({ where: { courseId: { in: courseIds } } }),
         prisma.lessonProgress.findMany({
             where: { studentId, courseId: { in: courseIds } },
             select: { isCompleted: true, courseId: true, watchPercentage: true },
-        }),
-        prisma.liveSession.count({
-            where: {
-                courseId: { in: courseIds },
-                type: 'GROUP',
-                status: 'COMPLETED',
-            },
         }),
     ]);
     const examSubs = examSubsRaw.filter((s) => s.exam && examInScopedCourses(s.exam));
@@ -178,13 +151,9 @@ export const getStudentPerformanceForInstructor = async (instructorId, studentId
     const bundle = buildStudentPerformanceBundle({
         enrollments: mappedEnrollments,
         examSubs,
-        hwSubs,
-        homeworksAssigned,
         lessonProgressRows,
-        completedSessionsCount,
         totalSpent: 0,
         totalLessonsInEnrolledCourses: totalLessonsInCourses,
-        attendanceSummary: (await getStudentAttendanceReport(studentId, courseIds)).summary,
     });
     return {
         student: user,

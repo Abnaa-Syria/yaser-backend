@@ -1,5 +1,4 @@
 import * as adminCourseService from './admin-course.service.js';
-import * as liveSessionService from './admin-live-session.service.js';
 import { catchAsync } from '../../../utils/catchAsync.js';
 import { successResponse } from '../../../utils/responseHandler.js';
 export const createCourse = catchAsync(async (req, res) => {
@@ -60,21 +59,5 @@ export const addCourseStaff = catchAsync(async (req, res) => {
 export const removeCourseStaff = catchAsync(async (req, res) => {
     const result = await adminCourseService.removeCourseStaff(req.params.id, req.params.staffId, req.user.id);
     successResponse({ res, data: result, message: 'Staff removed' });
-});
-export const listCourseSessions = catchAsync(async (req, res) => {
-    const result = await liveSessionService.listCourseSessions(req.params.id);
-    successResponse({ res, data: result, message: 'Sessions fetched' });
-});
-export const createCourseSession = catchAsync(async (req, res) => {
-    const result = await liveSessionService.createCourseSession(req.params.id, req.body);
-    successResponse({ res, data: result, message: 'Session created', statusCode: 201 });
-});
-export const updateCourseSession = catchAsync(async (req, res) => {
-    const result = await liveSessionService.updateCourseSession(req.params.id, req.params.sessionId, req.body);
-    successResponse({ res, data: result, message: 'Session updated' });
-});
-export const deleteCourseSession = catchAsync(async (req, res) => {
-    const result = await liveSessionService.deleteCourseSession(req.params.id, req.params.sessionId);
-    successResponse({ res, data: result, message: 'Session deleted' });
 });
 //# sourceMappingURL=admin-course.controller.js.map

@@ -74,10 +74,22 @@ export const completeLesson = async (userId, lessonId, courseId) => {
             },
         });
         await calculateCourseProgress(userId, resolvedCourseId, tx);
-        return updatedProgress;
+        return { ...updatedProgress, courseId: resolvedCourseId, newlyCompleted: true };
+    }).then(async (result) => {
+        if (result.newlyCompleted) {
+            try {
+                const { awardLessonXp } = await import('../../student/gamification/gamification.service.js');
+                const xp = await awardLessonXp(userId, lessonId, resolvedCourseId);
+                return { ...result, xp };
+            }
+            catch {
+                return result;
+            }
+        }
+        return result;
     });
 };
-export const trackAccess = async (userId, lessonId, watchPercentage = 0, courseId) => {
+export const trackAccess = async (userId, lessonId, watchPercentage = 0, courseId, options) => {
     const lesson = await prisma.lesson.findUnique({
         where: { id: lessonId },
         include: { section: { select: { unit: { select: { courseId: true } } } } },
@@ -86,26 +98,61 @@ export const trackAccess = async (userId, lessonId, watchPercentage = 0, courseI
         throw new AppError('Lesson not found', 404);
     const resolvedCourseId = courseId ?? lesson.section.unit.courseId;
     await requireCourseAccess(userId, resolvedCourseId);
-    return prisma.lessonProgress.upsert({
-        where: {
-            studentId_lessonId_courseId: {
+    const clampedPct = Math.min(100, Math.max(0, Math.round(Number(watchPercentage) || 0)));
+    const position = options?.lastWatchedPosition != null
+        ? Math.max(0, Math.floor(options.lastWatchedPosition))
+        : undefined;
+    const timeDelta = Math.min(120, Math.max(0, Math.floor(options?.timeSpentDelta ?? 0)));
+    const AUTO_COMPLETE_AT = 90;
+    return prisma.$transaction(async (tx) => {
+        const existing = await tx.lessonProgress.findUnique({
+            where: {
+                studentId_lessonId_courseId: {
+                    studentId: userId,
+                    lessonId,
+                    courseId: resolvedCourseId,
+                },
+            },
+        });
+        const nextPct = Math.max(existing?.watchPercentage ?? 0, clampedPct);
+        const shouldComplete = !existing?.isCompleted && nextPct >= AUTO_COMPLETE_AT;
+        const updated = await tx.lessonProgress.upsert({
+            where: {
+                studentId_lessonId_courseId: {
+                    studentId: userId,
+                    lessonId,
+                    courseId: resolvedCourseId,
+                },
+            },
+            update: {
+                lastAccessedAt: new Date(),
+                ...(timeDelta > 0 ? { timeSpentSeconds: { increment: timeDelta } } : {}),
+                ...(nextPct > 0 ? { watchPercentage: nextPct } : {}),
+                ...(position != null ? { lastWatchedPosition: position } : {}),
+                ...(shouldComplete
+                    ? {
+                        isCompleted: true,
+                        completedAt: new Date(),
+                        watchPercentage: Math.max(nextPct, 100),
+                    }
+                    : {}),
+            },
+            create: {
                 studentId: userId,
                 lessonId,
                 courseId: resolvedCourseId,
+                isCompleted: shouldComplete,
+                completedAt: shouldComplete ? new Date() : null,
+                lastAccessedAt: new Date(),
+                watchPercentage: shouldComplete ? Math.max(nextPct, 100) : nextPct,
+                timeSpentSeconds: timeDelta,
+                lastWatchedPosition: position ?? 0,
             },
-        },
-        update: {
-            lastAccessedAt: new Date(),
-            timeSpentSeconds: { increment: 10 },
-            ...(watchPercentage > 0 ? { watchPercentage } : {}),
-        },
-        create: {
-            studentId: userId,
-            lessonId,
-            courseId: resolvedCourseId,
-            isCompleted: false,
-            watchPercentage: watchPercentage > 0 ? watchPercentage : 0,
-        },
+        });
+        if (shouldComplete) {
+            await calculateCourseProgress(userId, resolvedCourseId, tx);
+        }
+        return updated;
     });
 };
 export const listCompletedLessonIds = async (userId, courseId) => {

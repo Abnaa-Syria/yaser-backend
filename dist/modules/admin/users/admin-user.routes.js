@@ -7,6 +7,7 @@ import * as adminUserValidation from './admin-user.validation.js';
 const router = Router();
 router.use(protect);
 router.get('/', requirePermission('user:manage'), validate(adminUserValidation.listUsersSchema), adminUserController.getAllUsers);
+router.post('/', requirePermission('user:manage'), validate(adminUserValidation.createAdminUserSchema), adminUserController.createUser);
 router.get('/:id', requirePermission('user:manage'), validate(adminUserValidation.userIdParamSchema), adminUserController.getUser);
 router.patch('/:id', requirePermission('user:manage'), validate(adminUserValidation.updateAdminUserSchema), adminUserController.updateUser);
 router.patch('/:id/toggle-active', requirePermission('user:manage'), validate(adminUserValidation.userIdParamSchema), adminUserController.toggleActive);

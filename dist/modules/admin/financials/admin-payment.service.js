@@ -5,12 +5,13 @@ import { creditInstructorForPaidPaymentTx } from './payment-wallet-credit.servic
 import { fulfillPrivateSessionPaymentTx } from '../../student/financials/student-financial.service.js';
 import { platformFeatures } from '../../../config/features.config.js';
 import { calculateAccessExpiresAt, durationDaysFromParts } from '../../payments/access-window.js';
+import { sendTemplatedEmail } from '../../../utils/mail.js';
+import { APP_BRAND } from '../../../config/brand.config.js';
 function paymentCreditShape(payment) {
     return {
         id: payment.id,
         amount: payment.amount,
         courseId: payment.courseId,
-        liveSessionId: payment.liveSessionId,
         availabilityId: payment.availabilityId,
     };
 }
@@ -31,7 +32,6 @@ export const getAllPayments = async (query) => {
             student: { select: { fullName: true, email: true } },
             course: { select: { title: true } },
             coursePackage: { select: { id: true, title: true, titleAr: true } },
-            liveSession: { select: { title: true, type: true } },
         },
     });
 };
@@ -42,7 +42,6 @@ export const getPaymentById = async (id) => {
             student: { select: { id: true, fullName: true, avatar: true, email: true } },
             course: { select: { id: true, title: true } },
             coursePackage: { select: { id: true, title: true, titleAr: true } },
-            liveSession: true,
         },
     });
     if (!payment)
@@ -50,7 +49,7 @@ export const getPaymentById = async (id) => {
     return payment;
 };
 async function fulfillPaidPaymentTx(tx, payment, accessStartsAt = new Date()) {
-    if (platformFeatures.wallet && (payment.courseId || payment.liveSessionId || payment.availabilityId)) {
+    if (platformFeatures.wallet && (payment.courseId || payment.availabilityId)) {
         await creditInstructorForPaidPaymentTx(tx, paymentCreditShape(payment));
     }
     let purchased = false;
@@ -199,13 +198,20 @@ async function calculatePaymentAccessExpiresAtTx(tx, payment, accessStartsAt) {
  * Approve a pending payment and activate access
  */
 export const approvePayment = async (paymentId, reviewerId, adminNote) => {
-    const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+    const payment = await prisma.payment.findUnique({
+        where: { id: paymentId },
+        include: {
+            student: { select: { id: true, fullName: true, email: true } },
+            course: { select: { title: true } },
+            coursePackage: { select: { title: true } },
+        },
+    });
     if (!payment)
         throw new AppError('Payment not found.', 404);
     if (payment.status !== 'PENDING') {
         throw new AppError(`Cannot approve payment with status: ${payment.status}`, 400);
     }
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
         const accessStartsAt = new Date();
         const accessExpiresAt = await calculatePaymentAccessExpiresAtTx(tx, payment, accessStartsAt);
         await tx.payment.update({
@@ -228,14 +234,47 @@ export const approvePayment = async (paymentId, reviewerId, adminNote) => {
                 ? `Your payment of ${payment.amount} has been approved. Your private session is confirmed.`
                 : `Your payment of ${payment.amount} has been approved.`;
         await createNotification(payment.studentId, 'Payment Approved', message, 'GENERAL', tx);
-        return { id: paymentId, approved: true };
+        return { id: paymentId, approved: true, purchased };
     });
+    const productTitle = payment.course?.title || payment.coursePackage?.title || 'your purchase';
+    const learnUrl = `${APP_BRAND.siteUrl}/student/classes`;
+    void sendTemplatedEmail({
+        to: payment.student.email,
+        templateName: 'PAYMENT_APPROVED',
+        vars: {
+            student_name: payment.student.fullName,
+            name: payment.student.fullName,
+            paymentId: payment.id,
+            amount: payment.amount,
+            course_title: productTitle,
+            product_title: productTitle,
+            learn_url: learnUrl,
+            site_url: APP_BRAND.siteUrl,
+        },
+        fallbackSubject: `${APP_BRAND.name} — Payment approved`,
+        fallbackHtml: `
+      <p>Hi ${payment.student.fullName},</p>
+      <p>Your payment of <strong>${payment.amount}</strong> for <strong>${productTitle}</strong> was approved.</p>
+      <p>You can start learning here: <a href="${learnUrl}">${learnUrl}</a></p>
+      <p>— ${APP_BRAND.name}</p>
+    `,
+    }).catch((err) => {
+        console.error('[mail] PAYMENT_APPROVED failed', err);
+    });
+    return result;
 };
 /**
  * Reject a payment
  */
 export const rejectPayment = async (paymentId, reviewerId, rejectionReason) => {
-    const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+    const payment = await prisma.payment.findUnique({
+        where: { id: paymentId },
+        include: {
+            student: { select: { id: true, fullName: true, email: true } },
+            course: { select: { title: true } },
+            coursePackage: { select: { title: true } },
+        },
+    });
     if (!payment)
         throw new AppError('Payment not found.', 404);
     await prisma.$transaction(async (tx) => {
@@ -254,7 +293,36 @@ export const rejectPayment = async (paymentId, reviewerId, rejectionReason) => {
                 data: { status: 'AVAILABLE' },
             });
         }
-        await createNotification(payment.studentId, 'Payment Rejected', 'Your recent payment attempt was rejected. Please contact support.', 'GENERAL', tx);
+        await createNotification(payment.studentId, 'Payment Rejected', rejectionReason?.trim()
+            ? `Your payment was rejected: ${rejectionReason.trim()}`
+            : 'Your recent payment attempt was rejected. Please contact support.', 'GENERAL', tx);
+    });
+    const productTitle = payment.course?.title || payment.coursePackage?.title || 'your purchase';
+    const reason = rejectionReason?.trim() || 'Please contact support for details.';
+    void sendTemplatedEmail({
+        to: payment.student.email,
+        templateName: 'PAYMENT_REJECTED',
+        vars: {
+            student_name: payment.student.fullName,
+            name: payment.student.fullName,
+            paymentId: payment.id,
+            amount: payment.amount,
+            course_title: productTitle,
+            product_title: productTitle,
+            rejection_reason: reason,
+            contact_email: APP_BRAND.contactEmail,
+            site_url: APP_BRAND.siteUrl,
+        },
+        fallbackSubject: `${APP_BRAND.name} — Payment not approved`,
+        fallbackHtml: `
+      <p>Hi ${payment.student.fullName},</p>
+      <p>Your payment of <strong>${payment.amount}</strong> for <strong>${productTitle}</strong> was not approved.</p>
+      <p>Reason: ${reason}</p>
+      <p>Need help? Contact us at <a href="mailto:${APP_BRAND.contactEmail}">${APP_BRAND.contactEmail}</a>.</p>
+      <p>— ${APP_BRAND.name}</p>
+    `,
+    }).catch((err) => {
+        console.error('[mail] PAYMENT_REJECTED failed', err);
     });
     return { id: paymentId, rejected: true };
 };

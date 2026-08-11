@@ -21,6 +21,23 @@ export const upsertSection = async (key, content) => {
         create: { key, content }
     });
 };
+export const upsertSectionByKey = async (key, data) => {
+    const content = data.content;
+    return prisma.homePageSection.upsert({
+        where: { key },
+        update: {
+            content,
+            ...(data.isVisible !== undefined ? { isVisible: data.isVisible } : {}),
+            ...(data.order !== undefined ? { order: data.order } : {}),
+        },
+        create: {
+            key,
+            content,
+            isVisible: data.isVisible ?? true,
+            order: data.order ?? 0,
+        },
+    });
+};
 export const updateHeroSection = async (data) => {
     const content = { headline: data.headline, subheadline: data.subheadline };
     return prisma.homePageSection.upsert({

@@ -26,6 +26,18 @@ export const getInstructorAvailability = catchAsync(async (req, res) => {
     const result = await adminService.getInstructorAvailabilityForAdmin(req.params.id);
     successResponse({ res, data: result, message: 'Instructor availability retrieved' });
 });
+export const createInstructorAvailability = catchAsync(async (req, res) => {
+    const result = await adminService.createInstructorAvailabilityForAdmin(req.params.id, req.body);
+    successResponse({ res, data: result, message: 'Availability slot created', statusCode: 201 });
+});
+export const deleteInstructorAvailability = catchAsync(async (req, res) => {
+    const result = await adminService.deleteInstructorAvailabilityForAdmin(req.params.id, req.params.slotId);
+    successResponse({ res, data: result, message: 'Availability slot deleted' });
+});
+export const updateInstructorAvailabilityPrice = catchAsync(async (req, res) => {
+    const result = await adminService.updateInstructorAvailabilityPriceForAdmin(req.params.id, req.params.slotId, Number(req.body.price));
+    successResponse({ res, data: result, message: 'Availability slot updated' });
+});
 export const updateInstructor = catchAsync(async (req, res) => {
     const result = await adminService.updateInstructor(req.params.id, req.body);
     successResponse({ res, data: result, message: 'Instructor updated successfully' });

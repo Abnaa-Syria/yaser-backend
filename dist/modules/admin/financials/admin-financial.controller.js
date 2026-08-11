@@ -1,7 +1,10 @@
+import path from 'path';
+import fs from 'fs';
 import * as adminPackageService from './admin-package.service.js';
 import * as adminPaymentService from './admin-payment.service.js';
 import { catchAsync } from '../../../utils/catchAsync.js';
 import { successResponse } from '../../../utils/responseHandler.js';
+import { AppError } from '../../../utils/AppError.js';
 export const createPackage = catchAsync(async (req, res) => {
     const result = await adminPackageService.createPackage(req.body);
     successResponse({ res, data: result, message: 'Package created successfully', statusCode: 201 });
@@ -41,5 +44,19 @@ export const rejectPayment = catchAsync(async (req, res) => {
 export const updatePaymentStatus = catchAsync(async (req, res) => {
     const result = await adminPaymentService.updatePaymentStatus(req.params.id, req.body.status);
     successResponse({ res, data: result, message: 'Payment status updated successfully' });
+});
+export const downloadPaymentProof = catchAsync(async (req, res) => {
+    const payment = await adminPaymentService.getPaymentById(req.params.id);
+    const receiptUrl = payment?.receiptUrl;
+    if (!receiptUrl || !receiptUrl.includes('/uploads/payment-proofs/')) {
+        throw new AppError('No payment proof on file', 404);
+    }
+    const filename = path.basename(receiptUrl);
+    const absPath = path.join(process.cwd(), 'uploads', 'payment-proofs', filename);
+    if (!fs.existsSync(absPath)) {
+        throw new AppError('Payment proof file missing', 404);
+    }
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.sendFile(absPath);
 });
 //# sourceMappingURL=admin-financial.controller.js.map

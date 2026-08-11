@@ -340,6 +340,11 @@
                 <div class="brand" style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
                     <% if (logoBase64) { %>
                         <img class="brand-logo" src="<%= logoBase64 %>" alt="Yaser USMLE Step 1" style="height: 52px; margin-bottom: 2px;">
+                    <% } else { %>
+                        <div class="brand-fallback" style="margin-bottom: 2px;">
+                            <span class="en">Yaser USMLE</span>
+                            <span class="ar">منصة ياسر</span>
+                        </div>
                     <% } %>
                     <div class="brand-text" style="display: flex; flex-direction: column; text-align: right; line-height: 1.2;">
                         <span style="font-size: 14px; font-weight: 800; color: var(--ep-navy);">منصة ياسر للتحضير لامتحان USMLE Step 1</span>

@@ -21,41 +21,17 @@ export const updateStudentPerformance = async (studentId, courseId) => {
     const averageExamScore = totalExams > 0
         ? examSubmissions.reduce((acc, curr) => acc + (curr.totalScore || 0), 0) / totalExams
         : 0;
-    const homeworkSubmissions = await prisma.homeworkSubmission.findMany({
-        where: {
-            studentId,
-            homework: { courseId },
-        },
-        select: { status: true, grade: true },
-    });
-    const completedHomework = homeworkSubmissions.filter((s) => s.status === 'GRADED').length;
-    const lateHomework = 0;
-    const averageHomeworkGrade = homeworkSubmissions.length > 0
-        ? homeworkSubmissions.reduce((acc, curr) => acc + (curr.grade || 0), 0) / homeworkSubmissions.length
-        : 0;
-    const completedSessions = await prisma.liveClassAttendance.count({
-        where: {
-            studentId,
-            liveSession: { courseId, status: 'COMPLETED' },
-        },
-    });
     return prisma.studentPerformance.upsert({
         where: { studentId_courseId: { studentId, courseId } },
         update: {
             averageExamScore: Math.round(averageExamScore * 100) / 100,
-            homeworkCompleted: completedHomework,
-            homeworkLate: lateHomework,
-            averageGrade: Math.round(averageHomeworkGrade * 100) / 100,
-            classesAttended: completedSessions,
+            averageGrade: Math.round(averageExamScore * 100) / 100,
         },
         create: {
             studentId,
             courseId,
             averageExamScore: Math.round(averageExamScore * 100) / 100,
-            homeworkCompleted: completedHomework,
-            homeworkLate: lateHomework,
-            averageGrade: Math.round(averageHomeworkGrade * 100) / 100,
-            classesAttended: completedSessions,
+            averageGrade: Math.round(averageExamScore * 100) / 100,
         },
     });
 };

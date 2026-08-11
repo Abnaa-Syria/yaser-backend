@@ -29,12 +29,8 @@ export const ingestPaymentWebhook = async (input) => {
             },
         });
     try {
-        if (input.paymentId) {
-            await prisma.payment.update({
-                where: { id: input.paymentId },
-                data: { status: 'PAID', paidAt: new Date() },
-            });
-        }
+        // Payment fulfillment stays admin-driven for manual proof-of-payment flow.
+        // Webhooks only record the gateway event for audit/traceability.
         const processed = await prisma.paymentWebhookEvent.update({
             where: { id: event.id },
             data: { status: WebhookEventStatus.PROCESSED, processedAt: new Date() },

@@ -86,15 +86,15 @@ export const getInstructorOverview = async (instructorId) => {
     const upcomingSessionsList = upcomingSessionsRaw.map((s) => ({
         id: s.id,
         source: s.source,
-        sessionId: s.sessionId ?? null,
+        sessionId: null,
         lessonId: s.lessonId ?? null,
         title: s.title,
         startTime: s.startTime.toISOString(),
         endTime: s.endTime.toISOString(),
         meetingUrl: s.meetingUrl,
         status: s.status,
-        type: s.type ?? null,
-        studentName: s.studentName ?? null,
+        type: null,
+        studentName: null,
         course: s.course,
     }));
     const earningsTrend = buckets.map((b) => {

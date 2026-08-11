@@ -3,7 +3,7 @@ import { protect } from '../../../middlewares/auth.middleware.js';
 import { requirePermission } from '../../../middlewares/permission.middleware.js';
 import { validate } from '../../../middlewares/validate.middleware.js';
 import * as adminCmsController from './admin-cms.controller.js';
-import { faqSchema, aboutUsSchema, heroSchema, createSectionSchema, updateSectionSchema, addFaqSchema, updateFaqSchema, featureReviewSchema, packageStatusSchema, createPackageSchema, updatePackageSchema, createPostSchema, updatePostSchema, createBannerSchema, updateCmsPageSchema, } from './admin-cms.validation.js';
+import { faqSchema, aboutUsSchema, heroSchema, createSectionSchema, updateSectionSchema, upsertSectionByKeySchema, addFaqSchema, updateFaqSchema, featureReviewSchema, packageStatusSchema, createPackageSchema, updatePackageSchema, createPostSchema, updatePostSchema, createBannerSchema, updateCmsPageSchema, } from './admin-cms.validation.js';
 const router = Router();
 router.use(protect);
 router.use(requirePermission('cms:manage'));
@@ -29,6 +29,7 @@ router.patch('/packages/:id/status', validate(packageStatusSchema), adminCmsCont
 // --- Section CRUD ---
 router.get('/sections', adminCmsController.getSections);
 router.post('/sections', validate(createSectionSchema), adminCmsController.createSection);
+router.put('/sections/key/:key', validate(upsertSectionByKeySchema), adminCmsController.upsertSectionByKey);
 router.patch('/sections/:id', validate(updateSectionSchema), adminCmsController.updateSection);
 router.delete('/sections/:id', adminCmsController.deleteSection);
 // Posts

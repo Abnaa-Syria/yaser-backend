@@ -83,14 +83,7 @@ export async function persistCertificatePdf(cert: CertificateRecord): Promise<Bu
 
 export async function getCertificatePdfBufferById(certificateId: string): Promise<Buffer> {
   const cert = await loadCertificateRecord(certificateId);
-
-  if (cert.pdfUrl) {
-    const filePath = pdfPathForSerial(cert.serialNumber);
-    if (fs.existsSync(filePath)) {
-      return fs.readFileSync(filePath);
-    }
-  }
-
+  // Always regenerate so brand logo / template updates apply to existing certificates.
   return persistCertificatePdf(cert);
 }
 

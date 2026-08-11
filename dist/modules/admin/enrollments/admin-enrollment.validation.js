@@ -18,4 +18,17 @@ export const createEnrollmentSchema = z.object({
         courseId: z.string().uuid('Invalid course ID format'),
     }),
 });
+export const enrollmentIdParamSchema = z.object({
+    params: z.object({
+        id: z.string().uuid('Invalid enrollment ID format'),
+    }),
+});
+export const updateEnrollmentExpirySchema = z.object({
+    params: z.object({
+        id: z.string().uuid('Invalid enrollment ID format'),
+    }),
+    body: z.object({
+        expiresAt: z.string().datetime().nullable().optional(),
+    }),
+});
 //# sourceMappingURL=admin-enrollment.validation.js.map

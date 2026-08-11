@@ -243,6 +243,7 @@ export const getCourseContent = async (studentId, courseId) => {
                             content: true,
                             order: true,
                             videoUrl: true,
+                            vdoCipherVideoId: true,
                             isPreview: true,
                             resources: {
                                 where: { isVisible: true },

@@ -2,7 +2,6 @@ import { platformFeatures } from '../config/features.config.js';
 import { AppError } from '../utils/AppError.js';
 const FEATURE_LABELS = {
     wallet: 'Wallet',
-    liveSessions: 'Live sessions',
     communityEvents: 'Community events',
     publicInstructorCatalog: 'Public instructor catalog',
     instructorSelfService: 'Instructor self-service',

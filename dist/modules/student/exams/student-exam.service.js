@@ -33,7 +33,7 @@ function getDefaultPreparationTips() {
     return [
         'Review all covered lessons before the exam',
         'Practice with class recordings',
-        'Complete all homework assignments',
+        'Review flashcards for key topics',
         'Get enough rest before exam day',
     ];
 }
@@ -381,7 +381,22 @@ export const submitExam = async (studentId, examId, answers) => {
             console.error(`Failed to update performance for student ${studentId} in course ${courseId}:`, err);
         });
     }
-    return finalSubmission;
+    // 5. Gamification XP (non-blocking for response shape)
+    let xp = null;
+    try {
+        const { awardExamXp } = await import('../gamification/gamification.service.js');
+        xp = await awardExamXp(studentId, finalSubmission.id, {
+            score: totalScore,
+            passingScore: submission.exam.passingScore,
+            totalPoints: submission.exam.totalPoints || submission.exam.passingScore || 1,
+            courseId: courseId || undefined,
+            passed: isPassed,
+        });
+    }
+    catch (err) {
+        console.error('[gamification] exam XP failed', err);
+    }
+    return { ...finalSubmission, xp };
 };
 /**
  * Get results for a submission
@@ -400,6 +415,13 @@ export const getSubmissionResult = async (studentId, submissionId) => {
         throw new AppError('Result not found.', 404);
     if (result.studentId !== studentId)
         throw new AppError('Unauthorized.', 403);
-    return result;
+    const ledger = await prisma.xpLedger.findFirst({
+        where: { userId: studentId, sourceType: 'EXAM', sourceId: submissionId },
+        select: { amount: true },
+    });
+    return {
+        ...result,
+        xp: ledger ? { awarded: true, amount: ledger.amount } : null,
+    };
 };
 //# sourceMappingURL=student-exam.service.js.map

@@ -35,4 +35,29 @@ export const listInstructorsSchema = z.object({
         limit: z.string().regex(/^\d+$/).optional(),
     }),
 });
+export const createAvailabilitySchema = z.object({
+    params: z.object({
+        id: z.string().uuid('Invalid instructor ID format'),
+    }),
+    body: z.object({
+        startTime: z.string().datetime({ offset: true }).or(z.string().min(1)),
+        endTime: z.string().datetime({ offset: true }).or(z.string().min(1)),
+        price: z.coerce.number().positive(),
+    }),
+});
+export const availabilitySlotParamSchema = z.object({
+    params: z.object({
+        id: z.string().uuid('Invalid instructor ID format'),
+        slotId: z.string().uuid('Invalid slot ID format'),
+    }),
+});
+export const updateAvailabilityPriceSchema = z.object({
+    params: z.object({
+        id: z.string().uuid('Invalid instructor ID format'),
+        slotId: z.string().uuid('Invalid slot ID format'),
+    }),
+    body: z.object({
+        price: z.coerce.number().positive(),
+    }),
+});
 //# sourceMappingURL=admin-instructor.validation.js.map

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { mediaUrlOrEmpty } from '../../../utils/mediaUrl.js';
 export const examIdParamSchema = z.object({
     params: z.object({
         id: z.string().uuid('Invalid exam ID format'),
@@ -39,6 +40,9 @@ export const createQuestionSchema = z.object({
         order: z.number().int().min(1),
         options: z.any().optional(),
         correctAnswer: z.string().optional(),
+        explanation: z.string().optional().nullable(),
+        explanationAr: z.string().optional().nullable(),
+        imageUrl: mediaUrlOrEmpty.optional().nullable(),
     }),
 });
 export const listExamsSchema = z.object({

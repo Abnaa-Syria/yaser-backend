@@ -19,4 +19,12 @@ export const createEnrollment = catchAsync(async (req, res) => {
         statusCode: 201
     });
 });
+export const updateEnrollmentExpiry = catchAsync(async (req, res) => {
+    const result = await adminEnrollmentService.updateEnrollmentExpiry(req.params.id, req.body.expiresAt ?? null);
+    successResponse({ res, data: result, message: 'Enrollment expiry updated successfully' });
+});
+export const revokeEnrollment = catchAsync(async (req, res) => {
+    const result = await adminEnrollmentService.revokeEnrollment(req.params.id);
+    successResponse({ res, data: result, message: 'Enrollment access revoked successfully' });
+});
 //# sourceMappingURL=admin-enrollment.controller.js.map

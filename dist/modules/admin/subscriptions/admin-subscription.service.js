@@ -42,19 +42,33 @@ export const updateSubscriptionStatus = async (id, status) => {
 export const createSubscription = async (body) => {
     const startDate = body.startDate ? new Date(body.startDate) : new Date();
     const planId = body.planId || body.packageId;
+    const studentId = body.studentId || body.userId;
     if (!planId)
         throw new AppError('planId (or packageId) is required.', 400);
+    if (!studentId)
+        throw new AppError('studentId is required.', 400);
     const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
     if (!plan)
         throw new AppError('Subscription plan not found.', 404);
     const endDate = body.endDate ? new Date(body.endDate) : computeEndDate(startDate, plan.durationMonths);
     return prisma.userSubscription.create({
         data: {
-            studentId: body.studentId,
+            studentId,
             planId,
             startDate,
             endDate,
             status: body.status || 'ACTIVE',
+        },
+        include: {
+            student: { select: { id: true, fullName: true, email: true } },
+            plan: {
+                select: {
+                    id: true,
+                    name: true,
+                    price: true,
+                    durationMonths: true,
+                },
+            },
         },
     });
 };

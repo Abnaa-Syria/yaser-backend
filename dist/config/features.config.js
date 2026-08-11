@@ -6,7 +6,6 @@ const envFlag = (name, defaultValue) => {
 };
 export const platformFeatures = {
     wallet: envFlag('FEATURE_WALLET', false),
-    liveSessions: envFlag('FEATURE_LIVE_SESSIONS', false),
     communityEvents: envFlag('FEATURE_COMMUNITY_EVENTS', false),
     publicInstructorCatalog: envFlag('FEATURE_PUBLIC_INSTRUCTOR_CATALOG', false),
     instructorSelfService: envFlag('FEATURE_INSTRUCTOR_SELF_SERVICE', false),

@@ -15,5 +15,7 @@ router.get('/emails', adminSettingsController.getEmailTemplates);
 router.post('/emails', validate(adminSettingsValidation.createEmailTemplateSchema), adminSettingsController.createEmailTemplate);
 router.patch('/emails/:id', validate(adminSettingsValidation.updateEmailTemplateSchema), adminSettingsController.updateEmailTemplate);
 router.delete('/emails/:id', adminSettingsController.deleteEmailTemplate);
+router.post('/emails/preview', validate(adminSettingsValidation.previewEmailTemplateSchema), adminSettingsController.previewEmailTemplate);
+router.post('/emails/send-test', validate(adminSettingsValidation.sendTestEmailTemplateSchema), adminSettingsController.sendTestEmailTemplate);
 export default router;
 //# sourceMappingURL=admin-settings.routes.js.map

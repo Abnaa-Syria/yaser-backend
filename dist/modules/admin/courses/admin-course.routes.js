@@ -20,9 +20,5 @@ router.patch('/:id/reject', requirePermission('course:review'), validate(adminVa
 router.get('/:id/staff', validate(adminValidation.courseIdParamSchema), adminController.getCourseStaff);
 router.post('/:id/staff', requirePermission('course:staff:manage'), validate(adminValidation.addStaffSchema), adminController.addCourseStaff);
 router.delete('/:id/staff/:staffId', requirePermission('course:staff:manage'), validate(adminValidation.staffIdParamSchema), adminController.removeCourseStaff);
-router.get('/:id/sessions', validate(adminValidation.courseIdParamSchema), adminController.listCourseSessions);
-router.post('/:id/sessions', validate(adminValidation.createSessionSchema), adminController.createCourseSession);
-router.patch('/:id/sessions/:sessionId', validate(adminValidation.updateSessionSchema), adminController.updateCourseSession);
-router.delete('/:id/sessions/:sessionId', validate(adminValidation.sessionIdParamSchema), adminController.deleteCourseSession);
 export default router;
 //# sourceMappingURL=admin-course.routes.js.map

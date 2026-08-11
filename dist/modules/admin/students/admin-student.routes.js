@@ -8,6 +8,5 @@ const router = Router();
 router.use(protect);
 router.use(requirePermission('user:manage'));
 router.get('/:id/performance', validate(adminStudentValidation.studentIdParamSchema), adminStudentController.getStudentPerformance);
-router.get('/:id/attendance', validate(adminStudentValidation.studentIdParamSchema), adminStudentController.getStudentAttendance);
 export default router;
 //# sourceMappingURL=admin-student.routes.js.map

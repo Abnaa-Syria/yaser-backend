@@ -5,6 +5,7 @@ import { notDeleted, softDeleteData } from '../../../utils/soft-delete.js';
 import { logAudit } from '../../../services/audit-logger.service.js';
 import { deactivateAllUserSessions } from '../../../services/session.service.js';
 import { hashPassword } from '../../../utils/security/hash.js';
+import { allocateUniqueUsername, usernameFromIdentity } from '../../../utils/username.js';
 /**
  * Get all platform users with filtering and pagination
  */
@@ -21,11 +22,13 @@ export const getAllUsers = async (query) => {
         where.OR = [
             { fullName: { contains: search } },
             { email: { contains: search } },
+            { username: { contains: search } },
         ];
     }
     const baseSelect = {
         id: true,
         email: true,
+        username: true,
         fullName: true,
         phone: true,
         avatar: true,
@@ -101,6 +104,42 @@ export const getAllUsers = async (query) => {
         },
         studentListStats,
     };
+};
+/**
+ * Create a staff/assistant user directly from the admin dashboard
+ * (e.g. teaching assistants, content reviewers, financial managers).
+ */
+export const createStaffUser = async (data) => {
+    const email = data.email.trim().toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing)
+        throw new AppError('Email is already in use.', 409);
+    const role = await prisma.role.findUnique({ where: { id: data.roleId } });
+    if (!role)
+        throw new AppError('Role not found.', 404);
+    const hashedPassword = await hashPassword(data.password);
+    const username = await allocateUniqueUsername(usernameFromIdentity({ email, fullName: data.fullName }));
+    const user = await prisma.user.create({
+        data: {
+            fullName: data.fullName.trim(),
+            email,
+            username,
+            password: hashedPassword,
+            roleId: data.roleId,
+            phone: data.phone?.trim() || null,
+        },
+        select: {
+            id: true,
+            email: true,
+            username: true,
+            fullName: true,
+            phone: true,
+            role: true,
+            isActive: true,
+            createdAt: true,
+        },
+    });
+    return user;
 };
 /**
  * Get specific user details

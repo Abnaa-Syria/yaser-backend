@@ -4,16 +4,9 @@ import { getInstructorPerformanceDashboard } from '../instructor/performance/ins
  * Get instructor dashboard stats
  */
 export const getDashboardStats = async (instructorId) => {
-    const [totalCourses, upcomingSessions, user] = await prisma.$transaction([
+    const [totalCourses, user] = await prisma.$transaction([
         prisma.course.count({
             where: { instructorId },
-        }),
-        prisma.liveSession.count({
-            where: {
-                instructorId,
-                status: 'UPCOMING',
-                startTime: { gte: new Date() },
-            },
         }),
         prisma.user.findUnique({
             where: { id: instructorId },
@@ -22,7 +15,7 @@ export const getDashboardStats = async (instructorId) => {
     ]);
     return {
         totalCourses,
-        upcomingSessions,
+        upcomingSessions: 0,
         averageRating: user?.averageRating || 0,
     };
 };
@@ -45,14 +38,6 @@ export const getInstructorClasses = async (instructorId, query) => {
                 isActive: true,
                 thumbnail: true,
                 _count: { select: { purchases: true } },
-                liveSessions: {
-                    where: {
-                        type: 'GROUP',
-                        status: 'UPCOMING',
-                        startTime: { gte: new Date() },
-                    },
-                    select: { id: true },
-                },
             },
         }),
         prisma.course.count({ where: { instructorId, deletedAt: null } }),
@@ -64,7 +49,7 @@ export const getInstructorClasses = async (instructorId, query) => {
         isActive: c.isActive,
         thumbnail: c.thumbnail,
         enrollmentCount: c._count.purchases,
-        upcomingSessions: c.liveSessions.length,
+        upcomingSessions: 0,
     }));
     return {
         classes,
