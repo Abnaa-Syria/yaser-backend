@@ -8,6 +8,8 @@ const DEFAULT_ORIGINS = [
   'http://127.0.0.1:5174',
   'https://yaser-usmle.com',
   'https://www.yaser-usmle.com',
+  'https://alienparts.online',
+  'https://www.alienparts.online',
 ];
 
 function parseAllowedOrigins(): string[] {

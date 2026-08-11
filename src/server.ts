@@ -19,8 +19,12 @@ app.set('trust proxy', 1); // Trust first proxy (e.g. Nginx, Cloudflare)
 const PORT = process.env.PORT || 3000;
 console.log(PORT);
 
-// Security middleware
-app.use(helmet());
+// Security middleware — CORP must be cross-origin so the SPA on another subdomain can read API responses.
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));

@@ -30,9 +30,20 @@ export const protectTrial = catchAsync(async (req: Request, _res: Response, next
     return next(new AppError('Invalid trial token.', 401));
   }
 
-  const session = await prisma.trialSession.findUnique({
-    where: { id: String(decoded.trialId) },
-  });
+  const trialId = String(decoded.trialId).trim();
+  // Invalid ids must not become unhandled Prisma 500s (blank /trial page).
+  if (!/^[0-9a-f-]{36}$/i.test(trialId)) {
+    return next(new AppError('Trial session expired or invalid. Please start again.', 401));
+  }
+
+  let session;
+  try {
+    session = await prisma.trialSession.findUnique({
+      where: { id: trialId },
+    });
+  } catch {
+    return next(new AppError('Trial session expired or invalid. Please start again.', 401));
+  }
   if (!session) {
     return next(new AppError('Trial session not found. Please start again.', 401));
   }
