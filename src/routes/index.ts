@@ -76,6 +76,7 @@ import publicPrivateSessionRequestRoutes from '../modules/public/private-session
 import adminPrivateSessionRequestRoutes from '../modules/admin/private-session-requests/admin-private-session-request.routes.js';
 import adminTrialRoutes from '../modules/admin/trial/admin-trial.routes.js';
 import { publicTrialRouter, trialRouter } from '../modules/trial/trial.routes.js';
+import mediaRoutes from '../modules/media/media.routes.js';
 
 const apiRouter = Router();
 
@@ -84,6 +85,7 @@ const apiRouter = Router();
 // =====================================
 apiRouter.use('/auth', authRoutes);
 apiRouter.use('/profile', profileRoutes);
+apiRouter.use('/media', mediaRoutes);
 
 // =====================================
 // STUDENT ROUTES

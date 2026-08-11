@@ -265,6 +265,7 @@ model User {
   reviewedInstructorApplications InstructorApplication[] @relation("InstructorApplicationReviewer")
   privateSessionRequestsAsStudent    PrivateSessionRequest[] @relation("PrivateSessionStudent")
   privateSessionRequestsAsInstructor PrivateSessionRequest[] @relation("PrivateSessionInstructor")
+  mediaAssets                        MediaAsset[]
 
   lastLoginAt              DateTime?
   legacyPasswordRehashedAt DateTime?
@@ -1648,6 +1649,27 @@ model Banner {
   updatedAt DateTime @updatedAt
 
   @@map("cms_banners")
+}
+
+/// Shared media library (admin + instructor uploads).
+model MediaAsset {
+  id           String  @id @default(uuid())
+  url          String  @db.Text
+  filename     String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  width        Int?
+  height       Int?
+  folder       String  @default("media")
+  uploadedById String?
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([uploadedById])
+  @@map("media_assets")
 }
 
 // ============================================
