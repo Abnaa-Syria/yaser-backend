@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { mediaUrlOrEmpty, requiredMediaUrl } from '../../../utils/mediaUrl.js';
 
 const localizedString = z.union([
   z.string(),
@@ -163,7 +164,7 @@ export const createPostSchema = z.object({
     slug: z.string().min(3),
     content: postContentSchema,
     contentAr: postContentSchema.optional(),
-    thumbnail: z.union([z.string().url(), z.literal('')]).optional(),
+    thumbnail: mediaUrlOrEmpty.optional(),
     published: z.boolean().optional(),
     category: z.string().optional(),
   })
@@ -177,7 +178,7 @@ export const updatePostSchema = z.object({
     slug: z.string().min(3).optional(),
     content: postContentSchema.optional(),
     contentAr: postContentSchema.optional().nullable(),
-    thumbnail: z.union([z.string().url(), z.literal('')]).optional(),
+    thumbnail: mediaUrlOrEmpty.optional(),
     published: z.boolean().optional(),
     category: z.string().optional(),
   })
@@ -188,7 +189,7 @@ export const createBannerSchema = z.object({
   body: z.object({
     title: z.string().optional(),
     titleAr: z.string().optional().nullable(),
-    imageUrl: z.string().url(),
+    imageUrl: requiredMediaUrl,
     link: z.string().max(2048).optional().nullable(),
     isActive: z.boolean().optional(),
     order: z.number().int().optional(),

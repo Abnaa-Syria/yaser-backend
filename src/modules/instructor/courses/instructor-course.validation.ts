@@ -1,14 +1,8 @@
 import { z } from 'zod';
+import { optionalMediaUrl, optionalNullableMediaUrl } from '../../../utils/mediaUrl.js';
 
 const emptyToUndefined = (val: unknown) =>
   val === '' || val === null || val === 'null' || val === 'undefined' ? undefined : val;
-
-const optionalUrl = z.preprocess(emptyToUndefined, z.string().url().optional());
-
-const optionalNullableUrl = z.preprocess(
-  (val) => (val === '' ? null : val),
-  z.string().url().nullable().optional()
-);
 
 const optionalUuid = z.preprocess(emptyToUndefined, z.string().uuid().optional());
 
@@ -32,8 +26,8 @@ export const createCourseSchema = z.object({
   body: z.object({
     title: z.string().min(3).max(200),
     description: z.string().optional(),
-    thumbnail: optionalUrl,
-    introVideoUrl: optionalUrl,
+    thumbnail: optionalMediaUrl,
+    introVideoUrl: optionalMediaUrl,
     categoryId: optionalUuid,
     price: z.number().nonnegative().optional(),
     isLifetimePurchasable: z.boolean().optional(),
@@ -56,8 +50,8 @@ export const updateCourseSchema = z.object({
   body: z.object({
     title: z.string().min(3).max(200).optional(),
     description: z.string().optional(),
-    thumbnail: optionalUrl,
-    introVideoUrl: optionalNullableUrl,
+    thumbnail: optionalMediaUrl,
+    introVideoUrl: optionalNullableMediaUrl,
     categoryId: optionalNullableUuid,
     price: z.number().nonnegative().optional(),
     isLifetimePurchasable: z.boolean().optional(),

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalNullableMediaUrl } from '../../../utils/mediaUrl.js';
 
 export const createEventSchema = z.object({
   body: z.object({
@@ -10,7 +11,7 @@ export const createEventSchema = z.object({
       message: 'Invalid ISO date format for eventDate.',
     }),
     location: z.string().min(3, 'Location must be at least 3 characters.'),
-    bannerUrl: z.string().url('Invalid URL format for bannerUrl.').optional().nullable(),
+    bannerUrl: optionalNullableMediaUrl,
   }),
 });
 
@@ -27,7 +28,7 @@ export const updateEventSchema = z.object({
       })
       .optional(),
     location: z.string().min(3).optional(),
-    bannerUrl: z.string().url('Invalid URL format for bannerUrl.').optional().nullable(),
+    bannerUrl: optionalNullableMediaUrl,
     isActive: z.boolean().optional(),
   }),
 });

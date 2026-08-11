@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PLATFORM_CURRENCY } from '../../../config/currency.js';
+import { optionalNullableMediaUrl } from '../../../utils/mediaUrl.js';
 
 const platformCurrencySchema = z
   .string()
@@ -56,7 +57,7 @@ export const createPackageSchema = z.object({
     shortDescriptionAr: z.string().optional(),
     description: z.string().optional(),
     descriptionAr: z.string().optional(),
-    coverImage: z.union([z.string().url(), z.string().startsWith('/uploads/')]).optional().nullable(),
+    coverImage: optionalNullableMediaUrl,
     price: z.number().nonnegative(),
     originalPrice: z.number().nonnegative().optional(),
     currency: platformCurrencySchema,
@@ -96,7 +97,7 @@ export const updatePackageSchema = z.object({
     shortDescriptionAr: z.string().optional(),
     description: z.string().optional(),
     descriptionAr: z.string().optional(),
-    coverImage: z.union([z.string().url(), z.string().startsWith('/uploads/')]).optional().nullable(),
+    coverImage: optionalNullableMediaUrl,
     price: z.number().nonnegative().optional(),
     originalPrice: z.number().nonnegative().optional(),
     currency: platformCurrencySchema,

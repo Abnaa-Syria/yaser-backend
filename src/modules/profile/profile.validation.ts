@@ -17,6 +17,7 @@ const avatarValueSchema = z.union([
     .min(1)
     .max(600_000)
     .refine((s) => {
+      if (s.startsWith('/uploads/')) return true;
       try {
         const u = new URL(s);
         return u.protocol === 'http:' || u.protocol === 'https:' || u.protocol === 'data:';

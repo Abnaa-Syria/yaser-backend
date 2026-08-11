@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { requiredMediaUrl } from '../../../utils/mediaUrl.js';
 
 export const courseCheckoutSchema = z.object({
   params: z.object({
@@ -32,6 +33,6 @@ export const privateCheckoutSchema = z.object({
   }),
   body: z.object({
     paymentMethod: z.string().min(1, 'Payment method is required'),
-    receiptUrl: z.string().url('Invalid receipt URL'),
+    receiptUrl: requiredMediaUrl,
   }),
 });
