@@ -431,7 +431,22 @@ export const submitExam = async (studentId: string, examId: string, answers: Sub
     });
   }
 
-  return finalSubmission;
+  // 5. Gamification XP (non-blocking for response shape)
+  let xp = null;
+  try {
+    const { awardExamXp } = await import('../gamification/gamification.service.js');
+    xp = await awardExamXp(studentId, finalSubmission.id, {
+      score: totalScore,
+      passingScore: submission.exam.passingScore,
+      totalPoints: submission.exam.totalPoints || submission.exam.passingScore || 1,
+      courseId: courseId || undefined,
+      passed: isPassed,
+    });
+  } catch (err) {
+    console.error('[gamification] exam XP failed', err);
+  }
+
+  return { ...finalSubmission, xp };
 };
 
 
@@ -452,6 +467,14 @@ export const getSubmissionResult = async (studentId: string, submissionId: strin
   if (!result) throw new AppError('Result not found.', 404);
   if (result.studentId !== studentId) throw new AppError('Unauthorized.', 403);
 
-  return result;
+  const ledger = await prisma.xpLedger.findFirst({
+    where: { userId: studentId, sourceType: 'EXAM', sourceId: submissionId },
+    select: { amount: true },
+  });
+
+  return {
+    ...result,
+    xp: ledger ? { awarded: true, amount: ledger.amount } : null,
+  };
 };
 

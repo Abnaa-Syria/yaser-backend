@@ -133,6 +133,17 @@ export async function updateStudyPlanItem(
             : existing.completedAt,
     },
     include: linkedContentInclude,
+  }).then(async (updated) => {
+    if (data.status === 'DONE' && existing.status !== 'DONE') {
+      try {
+        const { awardStudyPlanItemXp } = await import('../gamification/gamification.service.js');
+        const xp = await awardStudyPlanItemXp(studentId, itemId);
+        return { ...updated, xp };
+      } catch {
+        return updated;
+      }
+    }
+    return updated;
   });
 }
 

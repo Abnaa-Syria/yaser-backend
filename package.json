@@ -28,7 +28,8 @@
     "legacy:wp:enrollments:dry-run": "tsx prisma/migrations-data/wordpress/import-wordpress-enrollments.ts --dry-run",
     "legacy:wp:enrollments:apply": "tsx prisma/migrations-data/wordpress/import-wordpress-enrollments.ts --apply",
     "cms:seed-pages": "tsx scripts/seed-cms-pages.ts",
-    "cms:seed-public": "tsx scripts/seed-public-cms.ts"
+    "cms:seed-public": "tsx scripts/seed-public-cms.ts",
+    "gami:seed": "tsx scripts/seed-gamification.ts"
   },
   "keywords": [],
   "author": "",

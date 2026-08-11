@@ -93,7 +93,18 @@ export const completeLesson = async (userId: string, lessonId: string, courseId?
 
     await calculateCourseProgress(userId, resolvedCourseId, tx);
 
-    return updatedProgress;
+    return { ...updatedProgress, courseId: resolvedCourseId, newlyCompleted: true };
+  }).then(async (result) => {
+    if ((result as any).newlyCompleted) {
+      try {
+        const { awardLessonXp } = await import('../../student/gamification/gamification.service.js');
+        const xp = await awardLessonXp(userId, lessonId, resolvedCourseId);
+        return { ...result, xp };
+      } catch {
+        return result;
+      }
+    }
+    return result;
   });
 };
 

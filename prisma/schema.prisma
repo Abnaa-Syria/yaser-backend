@@ -266,6 +266,10 @@ model User {
   privateSessionRequestsAsStudent    PrivateSessionRequest[] @relation("PrivateSessionStudent")
   privateSessionRequestsAsInstructor PrivateSessionRequest[] @relation("PrivateSessionInstructor")
   mediaAssets                        MediaAsset[]
+  gameProfile                        StudentGameProfile?
+  xpLedger                           XpLedger[]
+  studentBadges                      StudentBadge[]
+  weeklyChallengeProgress            WeeklyChallengeProgress[]
 
   lastLoginAt              DateTime?
   legacyPasswordRehashedAt DateTime?
@@ -2012,4 +2016,124 @@ model LegacyImportCheckpoint {
 
   @@unique([runId, step])
   @@map("legacy_import_checkpoints")
+}
+
+// ============================================
+// GAMIFICATION — STEP MOMENTUM
+// ============================================
+
+enum XpSourceType {
+  LESSON
+  EXAM
+  STUDY_PLAN
+  CERTIFICATE
+  STREAK
+  CHALLENGE
+  FLASHCARD
+  MANUAL
+}
+
+enum ChallengeGoalType {
+  COMPLETE_LESSONS
+  PASS_EXAMS
+  EARN_XP
+}
+
+model StudentGameProfile {
+  id                 String    @id @default(uuid())
+  userId             String    @unique
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalXp            Int       @default(0)
+  level              Int       @default(1)
+  currentStreak      Int       @default(0)
+  longestStreak      Int       @default(0)
+  lastActiveDate     DateTime? @db.Date
+  displayNameOptOut  Boolean   @default(false)
+  updatedAt          DateTime  @updatedAt
+  createdAt          DateTime  @default(now())
+
+  @@index([totalXp])
+  @@map("student_game_profiles")
+}
+
+model XpLedger {
+  id         String       @id @default(uuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount     Int
+  reason     String
+  sourceType XpSourceType
+  sourceId   String
+  meta       Json?
+  createdAt  DateTime     @default(now())
+
+  @@unique([userId, sourceType, sourceId])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("xp_ledger")
+}
+
+model BadgeDefinition {
+  id            String   @id @default(uuid())
+  key           String   @unique
+  titleEn       String
+  titleAr       String
+  descriptionEn String   @db.Text
+  descriptionAr String   @db.Text
+  icon          String   @default("award")
+  category      String   @default("general")
+  rule          Json
+  xpReward      Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  awards StudentBadge[]
+
+  @@map("badge_definitions")
+}
+
+model StudentBadge {
+  id        String          @id @default(uuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId   String
+  badge     BadgeDefinition @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  earnedAt  DateTime        @default(now())
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("student_badges")
+}
+
+model WeeklyChallenge {
+  id            String            @id @default(uuid())
+  weekStart     DateTime          @db.Date
+  titleEn       String
+  titleAr       String
+  descriptionEn String            @db.Text
+  descriptionAr String            @db.Text
+  goalType      ChallengeGoalType
+  goalTarget    Int
+  rewardXp      Int               @default(50)
+  isActive      Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+
+  progress WeeklyChallengeProgress[]
+
+  @@index([weekStart])
+  @@map("weekly_challenges")
+}
+
+model WeeklyChallengeProgress {
+  id          String          @id @default(uuid())
+  challengeId String
+  challenge   WeeklyChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  progress    Int             @default(0)
+  completedAt DateTime?
+
+  @@unique([challengeId, userId])
+  @@index([userId])
+  @@map("weekly_challenge_progress")
 }
