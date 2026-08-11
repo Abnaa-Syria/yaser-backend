@@ -13,6 +13,7 @@ const cmsSectionSchema = z.object({
   heading: z.string(),
   body: z.string(),
   listItems: z.array(z.string()).optional(),
+  imageUrl: z.string().max(2000).optional(),
 });
 
 const postContentSchema = z.union([
@@ -48,6 +49,7 @@ export const aboutUsSchema = z.object({
     mission: localizedString,
     vision: localizedString,
     description: localizedString,
+    teamPhoto: z.string().max(2000).optional(),
   })
 });
 
@@ -67,6 +69,14 @@ export const createSectionSchema = z.object({
     isVisible: z.boolean().optional(),
     order: z.number().int().optional()
   })
+});
+
+export const upsertSectionByKeySchema = z.object({
+  body: z.object({
+    content: z.record(z.string(), z.any()),
+    isVisible: z.boolean().optional(),
+    order: z.number().int().optional(),
+  }),
 });
 
 export const updateSectionSchema = z.object({
@@ -177,6 +187,7 @@ export const updatePostSchema = z.object({
 export const createBannerSchema = z.object({
   body: z.object({
     title: z.string().optional(),
+    titleAr: z.string().optional().nullable(),
     imageUrl: z.string().url(),
     link: z.string().max(2048).optional().nullable(),
     isActive: z.boolean().optional(),

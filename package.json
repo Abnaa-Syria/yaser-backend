@@ -26,7 +26,9 @@
     "legacy:wp:courses:apply": "tsx prisma/migrations-data/wordpress/import-wordpress-courses.ts --apply",
     "legacy:wp:courses:resync": "tsx prisma/migrations-data/wordpress/import-wordpress-courses.ts --resync",
     "legacy:wp:enrollments:dry-run": "tsx prisma/migrations-data/wordpress/import-wordpress-enrollments.ts --dry-run",
-    "legacy:wp:enrollments:apply": "tsx prisma/migrations-data/wordpress/import-wordpress-enrollments.ts --apply"
+    "legacy:wp:enrollments:apply": "tsx prisma/migrations-data/wordpress/import-wordpress-enrollments.ts --apply",
+    "cms:seed-pages": "tsx scripts/seed-cms-pages.ts",
+    "cms:seed-public": "tsx scripts/seed-public-cms.ts"
   },
   "keywords": [],
   "author": "",

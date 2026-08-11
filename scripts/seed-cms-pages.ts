@@ -69,6 +69,38 @@ const pages = [
     sectionsEn: [{ id: 'i1', heading: 'How to apply', body: 'Send your CV, portfolio, and course outline to our team.', listItems: [] }],
     sectionsAr: [{ id: 'i1', heading: 'كيفية التقديم', body: 'أرسل سيرتك الذاتية ومخطط الدورة.', listItems: [] }],
   },
+  {
+    slug: 'privacy',
+    titleEn: 'Privacy Policy',
+    titleAr: 'سياسة الخصوصية',
+    subtitleEn: 'How we collect, use, and protect your personal information.',
+    subtitleAr: 'كيف نجمع معلوماتك الشخصية ونستخدمها ونحميها.',
+    order: 7,
+    sectionsEn: [
+      { id: 'p1', heading: 'Information we collect', body: 'Account details, learning activity, and support communications needed to run the platform.', listItems: [] },
+      { id: 'p2', heading: 'How we use data', body: 'To deliver courses, improve the product, and communicate about your account.', listItems: [] },
+    ],
+    sectionsAr: [
+      { id: 'p1', heading: 'المعلومات التي نجمعها', body: 'بيانات الحساب ونشاط التعلم ومراسلات الدعم اللازمة لتشغيل المنصة.', listItems: [] },
+      { id: 'p2', heading: 'كيف نستخدم البيانات', body: 'لتقديم الدورات وتحسين المنتج والتواصل بشأن حسابك.', listItems: [] },
+    ],
+  },
+  {
+    slug: 'refund-policy',
+    titleEn: 'Refund Policy',
+    titleAr: 'سياسة الاسترداد',
+    subtitleEn: 'Clear rules for refunds and course access changes.',
+    subtitleAr: 'قواعد واضحة للاسترداد وتغييرات الوصول إلى الدورات.',
+    order: 8,
+    sectionsEn: [
+      { id: 'r1', heading: 'Eligibility', body: 'Refund requests are reviewed according to the purchase type and timing stated at checkout.', listItems: [] },
+      { id: 'r2', heading: 'How to request', body: 'Contact support with your order details. We respond within a few business days.', listItems: [] },
+    ],
+    sectionsAr: [
+      { id: 'r1', heading: 'الأهلية', body: 'تُراجع طلبات الاسترداد وفق نوع الشراء والتوقيت الموضّح عند الدفع.', listItems: [] },
+      { id: 'r2', heading: 'كيفية الطلب', body: 'تواصل مع الدعم مع تفاصيل طلبك. نرد خلال أيام عمل قليلة.', listItems: [] },
+    ],
+  },
 ];
 
 async function main() {

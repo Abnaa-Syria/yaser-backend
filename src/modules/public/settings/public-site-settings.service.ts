@@ -15,6 +15,10 @@ const PUBLIC_SETTING_KEYS = [
   'LOGO_PRIMARY_URL',
   'LOGO_LIGHT_URL',
   'LOGO_MARK_URL',
+  'FOOTER_TAGLINE_EN',
+  'FOOTER_TAGLINE_AR',
+  'FOOTER_LOCATION_EN',
+  'FOOTER_LOCATION_AR',
 ] as const;
 
 function jsonToString(v: Prisma.JsonValue | null | undefined): string {
@@ -43,6 +47,10 @@ export async function getPublicSiteSettings() {
     logoMarkUrl: map.LOGO_MARK_URL || '',
     contactEmail: map.CONTACT_EMAIL || APP_BRAND.contactEmail,
     phoneNumber: phone,
+    footerTaglineEn: map.FOOTER_TAGLINE_EN || '',
+    footerTaglineAr: map.FOOTER_TAGLINE_AR || '',
+    footerLocationEn: map.FOOTER_LOCATION_EN || '',
+    footerLocationAr: map.FOOTER_LOCATION_AR || '',
     social: {
       facebook: map.SOCIAL_FACEBOOK_URL || '',
       twitter: map.SOCIAL_TWITTER_URL || '',

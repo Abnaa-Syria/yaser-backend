@@ -9,6 +9,7 @@ import {
   heroSchema,
   createSectionSchema, 
   updateSectionSchema,
+  upsertSectionByKeySchema,
   addFaqSchema,
   updateFaqSchema,
   featureReviewSchema,
@@ -53,6 +54,7 @@ router.patch('/packages/:id/status', validate(packageStatusSchema), adminCmsCont
 // --- Section CRUD ---
 router.get('/sections', adminCmsController.getSections);
 router.post('/sections', validate(createSectionSchema), adminCmsController.createSection);
+router.put('/sections/key/:key', validate(upsertSectionByKeySchema), adminCmsController.upsertSectionByKey);
 router.patch('/sections/:id', validate(updateSectionSchema), adminCmsController.updateSection);
 router.delete('/sections/:id', adminCmsController.deleteSection);
 

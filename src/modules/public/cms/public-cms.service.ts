@@ -165,6 +165,7 @@ export const getPublicBanners = async () => {
     select: {
       id: true,
       title: true,
+      titleAr: true,
       imageUrl: true,
       link: true,
       order: true,

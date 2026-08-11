@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
 
@@ -22,6 +23,27 @@ export const upsertSection = async (key: string, content: any) => {
     where: { key },
     update: { content },
     create: { key, content }
+  });
+};
+
+export const upsertSectionByKey = async (
+  key: string,
+  data: { content: Record<string, unknown>; isVisible?: boolean; order?: number }
+) => {
+  const content = data.content as Prisma.InputJsonValue;
+  return prisma.homePageSection.upsert({
+    where: { key },
+    update: {
+      content,
+      ...(data.isVisible !== undefined ? { isVisible: data.isVisible } : {}),
+      ...(data.order !== undefined ? { order: data.order } : {}),
+    },
+    create: {
+      key,
+      content,
+      isVisible: data.isVisible ?? true,
+      order: data.order ?? 0,
+    },
   });
 };
 

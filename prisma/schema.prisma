@@ -1637,6 +1637,7 @@ model Post {
 model Banner {
   id       String  @id @default(uuid())
   title    String?
+  titleAr  String?
   imageUrl String  @db.Text
   link     String? @db.Text
 
