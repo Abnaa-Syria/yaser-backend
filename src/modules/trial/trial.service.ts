@@ -189,10 +189,8 @@ export async function getTrialMe(trialId: string, fingerprint?: string) {
     throw new AppError('This device trial was stopped by an administrator.', 403);
   }
 
-  await prisma.trialSession.update({
-    where: { id: session.id },
-    data: { lastSeenAt: new Date() },
-  });
+  // lastSeenAt is already touched in protectTrial — avoid a second concurrent
+  // UPDATE (MariaDB 1020: "Record has changed since last read").
 
   const settings = await loadTrialSettings();
   const trialCourses = await listActiveTrialCourses();

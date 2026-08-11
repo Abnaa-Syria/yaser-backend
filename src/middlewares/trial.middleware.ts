@@ -64,12 +64,9 @@ export const protectTrial = catchAsync(async (req: Request, _res: Response, next
     return next(new AppError('Trial session does not match this device.', 403));
   }
 
-  // Touch lastSeenAt (fire-and-forget so we don't block the request)
-  void prisma.trialSession
-    .update({
-      where: { id: session.id },
-      data: { lastSeenAt: new Date() },
-    })
+  // Touch lastSeenAt without racing other handlers (raw UPDATE avoids MariaDB 1020).
+  void prisma
+    .$executeRaw`UPDATE trial_sessions SET lastSeenAt = NOW(3) WHERE id = ${session.id}`
     .catch(() => undefined);
 
   req.trial = {
