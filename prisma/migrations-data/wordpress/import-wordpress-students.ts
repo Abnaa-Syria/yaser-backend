@@ -1,9 +1,10 @@
 /**
- * WordPress → Yaser: students import / full resync.
+ * WordPress → Yaser: students identity-only import / resync.
  *
  * Safe scope:
  * - Creates or refreshes STUDENT users from the legacy dump
- * - Updates name, phone, email (when safe), and WordPress password hash
+ * - Writes ONLY email + username + password hash (plus required fullName placeholder)
+ * - Clears phone / does not carry WP display names or other profile fields
  * - Never overwrites platform owner / staff accounts
  * - Does NOT import courses, enrollments, quizzes, media, or payments
  *
@@ -136,6 +137,7 @@ async function main() {
       sourceDescription: plan.filePath,
       options: {
         studentsOnly: true,
+        identityOnly: true,
         resync,
         limit: args.limit ?? null,
         roleBreakdown: plan.roleBreakdown,
@@ -216,18 +218,18 @@ async function main() {
           usernameFromIdentity({
             login: student.login,
             email: student.email,
-            fullName: student.displayName,
           }),
           { excludeUserId: existingByLegacy.id }
         );
         const keepNativePassword = Boolean(existingByLegacy.legacyPasswordRehashedAt);
+        const fullName = username.slice(0, 120);
         await prisma.user.update({
           where: { id: existingByLegacy.id },
           data: {
             email: student.email,
             username,
-            fullName: student.displayName.slice(0, 120),
-            phone: student.phone || null,
+            fullName,
+            phone: null,
             ...(keepNativePassword
               ? {}
               : { password: student.hash, legacyPasswordRehashedAt: null }),
@@ -242,7 +244,7 @@ async function main() {
             metadata: {
               login: student.login,
               username,
-              capabilityKeys: student.capabilityKeys,
+              identityOnly: true,
               refreshedAt: new Date().toISOString(),
             },
           },
@@ -258,8 +260,8 @@ async function main() {
           ...existingByLegacy,
           email: student.email,
           username,
-          fullName: student.displayName.slice(0, 120),
-          phone: student.phone || null,
+          fullName,
+          phone: null,
           password: keepNativePassword ? existingByLegacy.password : student.hash,
         };
         existingByEmail.set(student.email, refreshed);
@@ -299,17 +301,17 @@ async function main() {
           usernameFromIdentity({
             login: student.login,
             email: student.email,
-            fullName: student.displayName,
           }),
           { excludeUserId: existingByMail.id }
         );
         const keepNativePassword = Boolean(existingByMail.legacyPasswordRehashedAt);
+        const fullName = username.slice(0, 120);
         await prisma.user.update({
           where: { id: existingByMail.id },
           data: {
             username,
-            fullName: student.displayName.slice(0, 120),
-            phone: student.phone || null,
+            fullName,
+            phone: null,
             ...(keepNativePassword
               ? {}
               : { password: student.hash, legacyPasswordRehashedAt: null }),
@@ -327,7 +329,8 @@ async function main() {
             targetId: existingByMail.id,
             metadata: {
               login: student.login,
-              capabilityKeys: student.capabilityKeys,
+              username,
+              identityOnly: true,
               linkedOnResync: true,
             },
           },
@@ -344,16 +347,16 @@ async function main() {
         usernameFromIdentity({
           login: student.login,
           email: student.email,
-          fullName: student.displayName,
         })
       );
+      const fullName = username.slice(0, 120);
       const createdUser = await prisma.user.create({
         data: {
           email: student.email,
           username,
           password: student.hash,
-          fullName: student.displayName.slice(0, 120),
-          phone: student.phone || null,
+          fullName,
+          phone: null,
           roleId: studentRoleId,
           isActive: true,
           emailVerifiedAt: new Date(),
@@ -371,7 +374,7 @@ async function main() {
           metadata: {
             login: student.login,
             username,
-            capabilityKeys: student.capabilityKeys,
+            identityOnly: true,
           },
         },
       });
@@ -395,6 +398,7 @@ async function main() {
 
     const summary = {
       studentsOnly: true,
+      identityOnly: true,
       resync,
       dryRun: args.dryRun,
       totalUsersInDump: plan.totalUsers,
@@ -415,8 +419,8 @@ async function main() {
       duplicateEmailConflicts: plan.duplicateEmailConflicts.length,
       conflictSamples: conflictSamples.slice(0, 20),
       note: args.dryRun
-        ? 'Dry-run only. Re-run with --resync and ALLOW_LEGACY_STUDENT_IMPORT=true to refresh all students.'
-        : 'Full student resync: created missing users and refreshed name/phone/email/password hash for mapped students.',
+        ? 'Dry-run only. Re-run with --resync and ALLOW_LEGACY_STUDENT_IMPORT=true to refresh email/username/password only.'
+        : 'Identity-only student resync: email + username + password hash (fullName=username placeholder; phone cleared).',
     };
 
     await prisma.legacyImportRun.update({
