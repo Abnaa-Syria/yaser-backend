@@ -41,10 +41,13 @@ export const globalErrorHandler = (err: any, req: Request, res: Response, next: 
       msg
     );
 
+  const maintenance = error.code === 'MAINTENANCE' || (error.statusCode === 503 && /maintenance/i.test(msg));
+
   res.status(error.statusCode).json({
     success: false,
     message: error.message || 'Internal Server Error',
-    code: subscriptionQuota ? 'SUBSCRIPTION_QUOTA' : undefined,
+    code: maintenance ? 'MAINTENANCE' : subscriptionQuota ? 'SUBSCRIPTION_QUOTA' : err.code || error.code,
+    maintenance: maintenance || undefined,
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });
   console.log("error is :",error);

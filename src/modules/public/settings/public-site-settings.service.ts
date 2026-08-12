@@ -19,6 +19,7 @@ const PUBLIC_SETTING_KEYS = [
   'FOOTER_TAGLINE_AR',
   'FOOTER_LOCATION_EN',
   'FOOTER_LOCATION_AR',
+  'MAINTENANCE_MODE',
 ] as const;
 
 function jsonToString(v: Prisma.JsonValue | null | undefined): string {
@@ -28,13 +29,26 @@ function jsonToString(v: Prisma.JsonValue | null | undefined): string {
   return '';
 }
 
+function jsonToBool(v: Prisma.JsonValue | null | undefined): boolean {
+  if (v === true) return true;
+  if (v === false || v == null) return false;
+  if (typeof v === 'string') return v.trim().toLowerCase() === 'true';
+  if (typeof v === 'number') return v === 1;
+  return false;
+}
+
 export async function getPublicSiteSettings() {
   const rows = await prisma.platformSetting.findMany({
     where: { key: { in: [...PUBLIC_SETTING_KEYS] } },
   });
 
   const map: Record<string, string> = {};
+  let maintenanceMode = false;
   for (const r of rows) {
+    if (r.key === 'MAINTENANCE_MODE') {
+      maintenanceMode = jsonToBool(r.value);
+      continue;
+    }
     map[r.key] = jsonToString(r.value);
   }
 
@@ -51,6 +65,7 @@ export async function getPublicSiteSettings() {
     footerTaglineAr: map.FOOTER_TAGLINE_AR || '',
     footerLocationEn: map.FOOTER_LOCATION_EN || '',
     footerLocationAr: map.FOOTER_LOCATION_AR || '',
+    maintenanceMode,
     social: {
       facebook: map.SOCIAL_FACEBOOK_URL || '',
       twitter: map.SOCIAL_TWITTER_URL || '',

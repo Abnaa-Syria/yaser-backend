@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
 import { previewTemplate, sendMail } from '../../../utils/mail.js';
+import { clearMaintenanceModeCache } from '../../../services/maintenance.service.js';
 
 function toJsonValue(value: unknown): Prisma.InputJsonValue {
   if (value === null || value === undefined) return '';
@@ -33,7 +34,11 @@ export const updateSettings = async (settings: Record<string, unknown>) => {
     })
   );
 
-  return await prisma.$transaction(updates);
+  const result = await prisma.$transaction(updates);
+  if (Object.prototype.hasOwnProperty.call(settings, 'MAINTENANCE_MODE')) {
+    clearMaintenanceModeCache();
+  }
+  return result;
 };
 
 

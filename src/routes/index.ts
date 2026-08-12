@@ -79,8 +79,11 @@ import adminPrivateSessionRequestRoutes from '../modules/admin/private-session-r
 import adminTrialRoutes from '../modules/admin/trial/admin-trial.routes.js';
 import { publicTrialRouter, trialRouter } from '../modules/trial/trial.routes.js';
 import mediaRoutes from '../modules/media/media.routes.js';
+import { maintenanceGuard } from '../middlewares/maintenance.middleware.js';
 
 const apiRouter = Router();
+
+apiRouter.use(maintenanceGuard);
 
 // =====================================
 // AUTH & PROFILE
