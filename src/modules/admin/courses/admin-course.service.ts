@@ -109,6 +109,7 @@ export const updateCourse = async (id: string, data: any, actorId?: string) => {
         shortDescription: data.shortDescription,
         shortDescriptionAr: data.shortDescriptionAr,
         thumbnail: data.thumbnail,
+        coverImage: data.coverImage !== undefined ? data.coverImage : data.thumbnail,
         introVideoUrl: data.introVideoUrl,
         categoryId: data.categoryId,
         isActive: data.isActive,
