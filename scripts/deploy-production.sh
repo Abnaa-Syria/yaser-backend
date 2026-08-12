@@ -43,7 +43,7 @@ pm2 status "$PM2_APP" | head -15
 log "=== FRONTEND ==="
 deploy_git_repo "$FRONTEND_DIR"
 cd "$FRONTEND_DIR"
-npm ci
+npm install --no-audit --no-fund
 npm run build
 nginx -t
 systemctl reload nginx
