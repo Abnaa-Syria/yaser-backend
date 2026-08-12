@@ -49,8 +49,17 @@ export const createCoursePurchasePayment = async (
         throw new AppError('Selected pricing tier not found or inactive.', 404);
       }
       basePrice = Number(pricingTier.price);
-    } else if (!course.isLifetimePurchasable) {
-      throw new AppError('This course is not available for individual purchase.', 400);
+    } else {
+      // Base course.price is buyable when lifetime is enabled, OR when the course
+      // has no active pricing tiers (plain single price, no subscription options).
+      if (!course.isLifetimePurchasable) {
+        const activeTierCount = await tx.coursePricingTier.count({
+          where: { courseId, isActive: true },
+        });
+        if (activeTierCount > 0) {
+          throw new AppError('This course is not available for individual purchase.', 400);
+        }
+      }
     }
 
     if (Number.isNaN(basePrice) || basePrice < 0) {
