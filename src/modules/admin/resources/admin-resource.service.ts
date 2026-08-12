@@ -80,6 +80,21 @@ export const createResource = async (lessonId: string, data: ResourceInput) => {
   });
 };
 
+function decodeUploadFilename(name?: string | null) {
+  if (!name) return '';
+  const raw = String(name);
+  // Multer/busboy often exposes non-ASCII filenames as Latin-1 mojibake of UTF-8 bytes.
+  if (/[À-ÿ]/.test(raw) && !/[\u0600-\u06FF]/.test(raw)) {
+    try {
+      const fixed = Buffer.from(raw, 'latin1').toString('utf8');
+      if (fixed && !fixed.includes('\uFFFD')) return fixed;
+    } catch {
+      // keep raw
+    }
+  }
+  return raw;
+}
+
 export const createResourceFromUpload = async (
   lessonId: string,
   file: Express.Multer.File,
@@ -88,11 +103,13 @@ export const createResourceFromUpload = async (
   if (!file) throw new AppError('A file is required', 400);
 
   const fileUrl = `/uploads/lesson-resources/${file.filename}`;
-  const displayTitle = (title || file.originalname || 'Lesson file').trim() || 'Lesson file';
+  const originalName = decodeUploadFilename(file.originalname);
+  const explicitTitle = typeof title === 'string' ? decodeUploadFilename(title).trim() : '';
+  const displayTitle = (explicitTitle || originalName || 'Lesson file').trim() || 'Lesson file';
   const meta = inferResourceMeta({
     fileUrl,
     mimeType: file.mimetype,
-    originalName: file.originalname,
+    originalName,
   });
 
   return createResource(lessonId, {
@@ -109,10 +126,33 @@ export const listLessonResources = async (lessonId: string) => {
   const lesson = await prisma.lesson.findUnique({ where: { id: lessonId }, select: { id: true } });
   if (!lesson) throw new AppError('Lesson not found', 404);
 
-  return prisma.lessonResource.findMany({
+  const resources = await prisma.lessonResource.findMany({
     where: { lessonId },
     orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
   });
+
+  // Repair previously saved mojibake titles (UTF-8 read as Latin-1).
+  const repairs = resources
+    .map((r) => {
+      const fixed = decodeUploadFilename(r.title);
+      if (fixed && fixed !== r.title && /[\u0600-\u06FF]/.test(fixed)) {
+        return { id: r.id, title: fixed };
+      }
+      return null;
+    })
+    .filter(Boolean) as { id: string; title: string }[];
+
+  if (repairs.length) {
+    await Promise.all(
+      repairs.map((r) => prisma.lessonResource.update({ where: { id: r.id }, data: { title: r.title } }))
+    );
+    return resources.map((r) => {
+      const hit = repairs.find((x) => x.id === r.id);
+      return hit ? { ...r, title: hit.title } : r;
+    });
+  }
+
+  return resources;
 };
 
 export const deleteResource = async (resourceId: string) => {
