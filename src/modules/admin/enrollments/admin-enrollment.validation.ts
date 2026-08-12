@@ -22,10 +22,35 @@ export const listEnrollmentsSchema = z.object({
 });
 
 export const createEnrollmentSchema = z.object({
-  body: z.object({
-    studentId: z.string().uuid('Invalid student ID format'),
-    courseId: z.string().uuid('Invalid course ID format'),
-  }),
+  body: z
+    .object({
+      studentId: z.string().uuid('Invalid student ID format'),
+      courseId: z.string().uuid('Invalid course ID format'),
+      /** lifetime | months | tier */
+      accessMode: z.enum(['lifetime', 'months', 'tier']).default('lifetime'),
+      pricingTierId: z.string().uuid().optional().nullable(),
+      durationMonths: z.number().int().min(1).max(60).optional().nullable(),
+      amountPaid: z.number().nonnegative().optional().nullable(),
+      notes: z.string().max(2000).optional().nullable(),
+      /** If true and student already has access, extend/update instead of failing */
+      renewIfExists: z.boolean().optional(),
+    })
+    .superRefine((body, ctx) => {
+      if (body.accessMode === 'months' && !(body.durationMonths && body.durationMonths > 0)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['durationMonths'],
+          message: 'durationMonths is required when accessMode is months',
+        });
+      }
+      if (body.accessMode === 'tier' && !body.pricingTierId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['pricingTierId'],
+          message: 'pricingTierId is required when accessMode is tier',
+        });
+      }
+    }),
 });
 
 export const enrollmentIdParamSchema = z.object({

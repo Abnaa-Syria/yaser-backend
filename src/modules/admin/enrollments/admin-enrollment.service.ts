@@ -1,6 +1,7 @@
 import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
 import { userHasRoleName } from '../../../utils/role-query.js';
+import { calculateAccessExpiresAt, durationDaysFromParts } from '../../payments/access-window.js';
 type ListOptions = {
   page: number;
   limit: number;
@@ -158,17 +159,48 @@ export const getAllEnrollments = async (raw: ListOptions) => {
 };
 
 /**
- * Manually grant a student lifetime access to a course.
+ * Manually grant a student course access (lifetime, months, or pricing tier).
  */
 export const createEnrollment = async (data: {
   studentId: string;
   courseId: string;
+  accessMode?: 'lifetime' | 'months' | 'tier';
+  pricingTierId?: string | null;
+  durationMonths?: number | null;
+  amountPaid?: number | null;
+  notes?: string | null;
+  renewIfExists?: boolean;
 }) => {
-  const { studentId, courseId } = data;
+  const {
+    studentId,
+    courseId,
+    accessMode = 'lifetime',
+    pricingTierId = null,
+    durationMonths = null,
+    amountPaid = null,
+    notes = null,
+    renewIfExists = true,
+  } = data;
 
   const course = await prisma.course.findUnique({
     where: { id: courseId },
-    select: { id: true, title: true },
+    select: {
+      id: true,
+      title: true,
+      price: true,
+      pricingTiers: {
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          nameAr: true,
+          price: true,
+          durationDays: true,
+          durationValue: true,
+          durationUnit: true,
+        },
+      },
+    },
   });
   if (!course) throw new AppError('Course not found.', 404);
 
@@ -177,24 +209,113 @@ export const createEnrollment = async (data: {
   });
   if (!student) throw new AppError('Student not found or invalid role.', 404);
 
+  let resolvedTierId: string | null = null;
+  let expiresAt: Date | null = null;
+  const accessStartsAt = new Date();
+
+  if (accessMode === 'tier') {
+    const tier =
+      course.pricingTiers.find((t) => t.id === pricingTierId) ||
+      (await prisma.coursePricingTier.findFirst({
+        where: { id: pricingTierId || '', courseId, isActive: true },
+      }));
+    if (!tier) throw new AppError('Selected pricing tier not found or inactive.', 404);
+    resolvedTierId = tier.id;
+    const days = durationDaysFromParts(tier.durationDays, tier.durationValue, tier.durationUnit);
+    expiresAt = calculateAccessExpiresAt(accessStartsAt, days);
+  } else if (accessMode === 'months') {
+    const months = Number(durationMonths);
+    if (!Number.isFinite(months) || months < 1) {
+      throw new AppError('durationMonths must be at least 1.', 400);
+    }
+    expiresAt = calculateAccessExpiresAt(accessStartsAt, months * 30);
+  } else {
+    expiresAt = null;
+    resolvedTierId = null;
+  }
+
   const existing = await prisma.coursePurchase.findUnique({
     where: { studentId_courseId: { studentId, courseId } },
   });
-  if (existing) throw new AppError('Student already owns this course.', 400);
+
+  if (existing) {
+    const stillActive = !existing.expiresAt || existing.expiresAt.getTime() > Date.now();
+    if (stillActive && !renewIfExists) {
+      throw new AppError('Student already owns this course.', 400);
+    }
+  }
+
+  const paidAmount =
+    amountPaid != null && Number.isFinite(Number(amountPaid)) ? Math.max(0, Number(amountPaid)) : null;
 
   const result = await prisma.$transaction(async (tx) => {
-    const purchase = await tx.coursePurchase.create({
-      data: {
-        studentId,
-        courseId,
-      },
-      include: {
-        course: { select: { title: true } },
-        student: { select: { fullName: true } },
-      },
-    });
+    let paymentId: string | null = existing?.paymentId || null;
 
-    return purchase;
+    if (paidAmount != null && paidAmount > 0) {
+      const payment = await tx.payment.create({
+        data: {
+          studentId,
+          courseId,
+          pricingTierId: resolvedTierId,
+          amount: paidAmount,
+          currency: 'USD',
+          status: 'PAID',
+          paymentMethod: 'MANUAL_ADMIN',
+          receiptUrl: 'ADMIN_MANUAL_ENROLLMENT',
+          adminNote: notes?.trim() || 'Manual enrollment by admin',
+          activatedAt: accessStartsAt,
+          accessStartsAt,
+          accessExpiresAt: expiresAt,
+          reviewedAt: accessStartsAt,
+        },
+      });
+      paymentId = payment.id;
+    }
+
+    const purchase = existing
+      ? await tx.coursePurchase.update({
+          where: { id: existing.id },
+          data: {
+            pricingTierId: resolvedTierId,
+            accessStartsAt,
+            activatedAt: accessStartsAt,
+            expiresAt,
+            paymentId: paymentId || undefined,
+          },
+          include: {
+            course: { select: { id: true, title: true, price: true } },
+            student: { select: { id: true, fullName: true, email: true } },
+            pricingTier: {
+              select: { id: true, name: true, nameAr: true, durationDays: true, price: true },
+            },
+          },
+        })
+      : await tx.coursePurchase.create({
+          data: {
+            studentId,
+            courseId,
+            pricingTierId: resolvedTierId,
+            accessStartsAt,
+            activatedAt: accessStartsAt,
+            expiresAt,
+            paymentId,
+          },
+          include: {
+            course: { select: { id: true, title: true, price: true } },
+            student: { select: { id: true, fullName: true, email: true } },
+            pricingTier: {
+              select: { id: true, name: true, nameAr: true, durationDays: true, price: true },
+            },
+          },
+        });
+
+    return {
+      ...purchase,
+      accessMode,
+      renewed: Boolean(existing),
+      notes: notes?.trim() || null,
+      amountPaid: paidAmount,
+    };
   });
 
   return result;
