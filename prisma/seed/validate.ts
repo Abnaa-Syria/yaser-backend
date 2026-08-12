@@ -53,8 +53,8 @@ const courseFixtureCount = (courseFixtureSource.match(/slug: 'step-1-/g) ?? []).
 if (courseFixtureCount < 8) {
   failures.push(`Expected at least 8 Step 1 course fixtures; found ${courseFixtureCount}.`);
 }
-if (!activeSeed.includes('https://demo.yaserusmle.com')) {
-  failures.push('Stable public demo origin is missing.');
+if (!activeSeed.includes("const DEMO_ORIGIN = ''") && !activeSeed.includes('const DEMO_ORIGIN = ""')) {
+  failures.push('DEMO_ORIGIN should be empty (legacy demo host no longer resolves).');
 }
 if (!activeSeed.includes("const instructors = [platformOwner]")) {
   failures.push('Expected a single platformOwner instructor array.');

@@ -41,6 +41,12 @@ router.post(
   financialController.privateCheckout
 );
 router.get('/my-payments', financialController.getMyPayments);
+router.get(
+  '/my-payments/:id/proof',
+  restrictToStudent,
+  validate(financialValidation.paymentIdParamSchema),
+  financialController.downloadMyPaymentProof
+);
 router.get('/my-courses', financialController.getMyPurchasedCourses);
 router.get('/my-package-balances', financialController.getMyPackageBalances);
 router.get('/my-subscriptions', financialController.getMySubscriptions);

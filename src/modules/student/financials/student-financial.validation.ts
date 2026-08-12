@@ -36,3 +36,9 @@ export const privateCheckoutSchema = z.object({
     receiptUrl: requiredMediaUrl,
   }),
 });
+
+export const paymentIdParamSchema = z.object({
+  params: z.object({
+    id: z.string().uuid('Invalid payment ID format'),
+  }),
+});

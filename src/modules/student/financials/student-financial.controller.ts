@@ -1,8 +1,20 @@
 import { Request, Response } from 'express';
+import path from 'path';
+import fs from 'fs';
 import * as financialService from './student-financial.service.js';
 import { catchAsync } from '../../../utils/catchAsync.js';
 import { successResponse } from '../../../utils/responseHandler.js';
 import { AppError } from '../../../utils/AppError.js';
+import { PAYMENT_PROOF_UPLOAD_DIR } from '../../../middlewares/paymentProofUpload.middleware.js';
+
+function proofContentType(filename: string) {
+  const ext = path.extname(filename).toLowerCase();
+  if (ext === '.png') return 'image/png';
+  if (ext === '.webp') return 'image/webp';
+  if (ext === '.gif') return 'image/gif';
+  if (ext === '.pdf') return 'application/pdf';
+  return 'image/jpeg';
+}
 
 export const courseCheckout = catchAsync(async (req: Request, res: Response) => {
   const courseId = req.params.courseId as string;
@@ -38,6 +50,26 @@ export const privateCheckout = catchAsync(async (req: Request, res: Response) =>
 export const getMyPayments = catchAsync(async (req: Request, res: Response) => {
   const result = await financialService.getMyPayments(req.user.id);
   successResponse({ res, data: result, message: 'Payments retrieved successfully' });
+});
+
+export const downloadMyPaymentProof = catchAsync(async (req: Request, res: Response) => {
+  const payment = await financialService.getMyPaymentById(req.user.id, req.params.id as string);
+  const receiptUrl = payment?.receiptUrl as string | undefined;
+  if (
+    !receiptUrl ||
+    !receiptUrl.includes('/uploads/payment-proofs/') ||
+    receiptUrl.startsWith('INSTANT_FREE')
+  ) {
+    throw new AppError('No payment proof on file', 404);
+  }
+  const filename = path.basename(receiptUrl);
+  const absPath = path.join(PAYMENT_PROOF_UPLOAD_DIR, filename);
+  if (!fs.existsSync(absPath)) {
+    throw new AppError('Payment proof file missing', 404);
+  }
+  res.setHeader('Content-Type', proofContentType(filename));
+  res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+  res.sendFile(absPath);
 });
 
 export const uploadPaymentProof = catchAsync(async (req: Request, res: Response) => {

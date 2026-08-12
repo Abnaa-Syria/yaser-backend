@@ -6,7 +6,8 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
-const DEMO_ORIGIN = 'https://demo.yaserusmle.com';
+/** Intentionally empty: media paths are stored as /assets/... and resolved in the SPA. */
+const DEMO_ORIGIN = '';
 const now = new Date();
 const days = (offset: number) => new Date(now.getTime() + offset * 86_400_000);
 const hours = (offset: number) => new Date(now.getTime() + offset * 3_600_000);

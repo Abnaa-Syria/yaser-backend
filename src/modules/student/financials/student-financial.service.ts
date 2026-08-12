@@ -50,7 +50,24 @@ export const createCoursePurchasePayment = async (
     });
 
     if (pendingExisting) {
-      return { payment: pendingExisting, reusedPending: true as const };
+      // Re-submit: refresh proof / method on the same pending payment (no duplicate rows).
+      if (!data.receiptUrl) {
+        throw new AppError('Receipt URL is required for paid purchases.', 400);
+      }
+      const updated = await tx.payment.update({
+        where: { id: pendingExisting.id },
+        data: {
+          paymentMethod: data.paymentMethod || pendingExisting.paymentMethod,
+          receiptUrl: data.receiptUrl,
+          studentNote: data.studentNote?.trim() || pendingExisting.studentNote,
+          pricingTierId: data.pricingTierId || pendingExisting.pricingTierId,
+          paymentDestinationSnapshot: {
+            paymentMethod: data.paymentMethod,
+            ...PAYMENT_CONFIG,
+          },
+        },
+      });
+      return { payment: updated, reusedPending: true as const };
     }
 
     let basePrice = Number(course.price);
@@ -205,7 +222,25 @@ export const createPackagePurchasePayment = async (
       },
       orderBy: { createdAt: 'desc' },
     });
-    if (pendingExisting) return { payment: pendingExisting, reusedPending: true as const };
+    if (pendingExisting) {
+      if (!data.receiptUrl) {
+        throw new AppError('Receipt URL is required for paid purchases.', 400);
+      }
+      const updated = await tx.payment.update({
+        where: { id: pendingExisting.id },
+        data: {
+          paymentMethod: data.paymentMethod || pendingExisting.paymentMethod,
+          receiptUrl: data.receiptUrl,
+          studentNote: data.studentNote?.trim() || pendingExisting.studentNote,
+          coursePackagePricingTierId: data.pricingTierId || pendingExisting.coursePackagePricingTierId,
+          paymentDestinationSnapshot: {
+            paymentMethod: data.paymentMethod,
+            ...PAYMENT_CONFIG,
+          },
+        },
+      });
+      return { payment: updated, reusedPending: true as const };
+    }
 
     let pricingTier = null;
     let basePrice = Number(coursePackage.price);
@@ -354,7 +389,14 @@ export const createPrivateSessionPayment = async (
       orderBy: { createdAt: 'desc' },
     });
     if (pendingExisting) {
-      return { payment: pendingExisting, reusedPending: true as const };
+      const updated = await tx.payment.update({
+        where: { id: pendingExisting.id },
+        data: {
+          paymentMethod: data.paymentMethod || pendingExisting.paymentMethod,
+          receiptUrl: data.receiptUrl,
+        },
+      });
+      return { payment: updated, reusedPending: true as const, slot };
     }
 
     const amount = slot.price > 0 ? slot.price : 0;
@@ -426,6 +468,16 @@ export const getMyPayments = async (studentId: string) => {
       coursePackagePricingTier: { select: { id: true, name: true, nameAr: true, price: true, durationDays: true } },
     },
   });
+};
+
+export const getMyPaymentById = async (studentId: string, paymentId: string) => {
+  const payment = await prisma.payment.findFirst({
+    where: { id: paymentId, studentId },
+  });
+  if (!payment) {
+    throw new AppError('Payment not found', 404);
+  }
+  return payment;
 };
 
 /**
