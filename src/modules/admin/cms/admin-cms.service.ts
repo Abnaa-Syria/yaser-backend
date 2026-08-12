@@ -70,7 +70,143 @@ export const updateHeroSection = async (data: {
 
 export const getFaqSection = async () => {
   const section = await prisma.homePageSection.findUnique({ where: { key: 'FAQ' } });
-  return section?.content || [];
+  const raw = section?.content;
+  const rawList = Array.isArray(raw)
+    ? raw
+    : raw && typeof raw === 'object' && Array.isArray((raw as { items?: unknown }).items)
+      ? ((raw as { items: unknown[] }).items)
+      : [];
+  const normalized = normalizeFaqList(raw);
+  // Persist cleanup when duplicates or bad shape exist.
+  if (section && (rawList.length !== normalized.length || (raw && !Array.isArray(raw)))) {
+    await upsertSection('FAQ', normalized);
+  }
+  return normalized;
+};
+
+function localizeText(value: unknown): { en: string; ar: string } {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const o = value as Record<string, unknown>;
+    return {
+      en: String(o.en ?? o.EN ?? '').trim(),
+      ar: String(o.ar ?? o.AR ?? '').trim(),
+    };
+  }
+  const s = String(value ?? '').trim();
+  return { en: s, ar: s };
+}
+
+function faqFingerprint(item: Record<string, unknown>): string {
+  const q = localizeText(item.question);
+  return (q.en || q.ar).toLowerCase();
+}
+
+function normalizeFaqList(content: unknown): Array<Record<string, unknown>> {
+  const list = Array.isArray(content)
+    ? content
+    : content && typeof content === 'object' && Array.isArray((content as { items?: unknown }).items)
+      ? ((content as { items: unknown[] }).items)
+      : [];
+  const seen = new Set<string>();
+  const out: Array<Record<string, unknown>> = [];
+  for (const raw of list) {
+    if (!raw || typeof raw !== 'object') continue;
+    const item = raw as Record<string, unknown>;
+    const key = faqFingerprint(item);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      id: typeof item.id === 'string' ? item.id : crypto.randomUUID(),
+      question: item.question,
+      answer: item.answer,
+      ...(item.createdAt ? { createdAt: item.createdAt } : {}),
+    });
+  }
+  return out;
+}
+
+const DEFAULT_FAQ_ITEMS: Array<{ question: { en: string; ar: string }; answer: { en: string; ar: string } }> = [
+  {
+    question: {
+      en: 'What is the learning format at Yaser USMLE?',
+      ar: 'ما هي صيغة التعلم في منصة Yaser USMLE؟',
+    },
+    answer: {
+      en: 'We offer structured, systems-based recorded courses combined with practice quizzes, flashcards, and a study planner — all in one platform designed specifically for USMLE Step 1 preparation.',
+      ar: 'نقدم دورات مسجلة منظمة حسب أنظمة الأعضاء، مع اختبارات تدريبية وفلاش كاردز وخطط مذاكرة — كل ذلك في منصة واحدة مصممة للتحضير لـ USMLE Step 1.',
+    },
+  },
+  {
+    question: {
+      en: 'Who are the courses designed for?',
+      ar: 'لمن تم تصميم هذه الدورات التدريبية؟',
+    },
+    answer: {
+      en: 'For medical students and graduates preparing for USMLE Step 1 who want a structured, evidence-based approach guided by expert educators.',
+      ar: 'لطلاب الطب والخريجين المتحضرين لـ USMLE Step 1 ممن يريدون نهجاً منظماً ومبنياً على الأدلة تحت إشراف معلمين خبراء.',
+    },
+  },
+  {
+    question: {
+      en: 'How do I access a course after enrolling?',
+      ar: 'كيف يمكنني الوصول للدورة بعد التسجيل؟',
+    },
+    answer: {
+      en: 'After your enrollment is approved, you will have immediate access to all course lectures, materials, quizzes, and flashcards from your student dashboard.',
+      ar: 'بعد الموافقة على طلب التسجيل، ستحصل فوراً على وصول كامل لجميع محاضرات الدورة والمواد والاختبارات والفلاش كاردز من لوحة تحكم الطالب.',
+    },
+  },
+  {
+    question: {
+      en: 'What payment methods are supported?',
+      ar: 'ما هي طرق الدفع المتاحة؟',
+    },
+    answer: {
+      en: 'We support manual bank transfer payments. Upload your payment proof and our team will verify and activate your access within one business day.',
+      ar: 'ندعم الدفع عبر التحويل البنكي اليدوي. ارفع إيصال الدفع وسيقوم فريقنا بالتحقق منه وتفعيل الوصول في غضون يوم عمل واحد.',
+    },
+  },
+  {
+    question: {
+      en: 'Is content available in Arabic and English?',
+      ar: 'هل المحتوى متاح بالعربية والإنجليزية؟',
+    },
+    answer: {
+      en: 'The platform interface supports Arabic and English. Each course page identifies the teaching language and available materials before enrollment.',
+      ar: 'تدعم المنصة الواجهة العربية والإنجليزية، وتوضح صفحة كل دورة لغة الشرح والمواد المتاحة قبل التسجيل.',
+    },
+  },
+  {
+    question: {
+      en: 'What should I do if I have an account or access issue?',
+      ar: 'ماذا أفعل إذا واجهت مشكلة في الحساب أو الوصول؟',
+    },
+    answer: {
+      en: 'Contact our support team from the contact page or open a ticket from your student dashboard, and we will review any account, payment, or access issue.',
+      ar: 'يمكنك التواصل مع فريق الدعم من صفحة اتصل بنا أو فتح تذكرة من لوحة الطالب، وسنراجع مشكلة الحساب أو الدفع أو الوصول.',
+    },
+  },
+];
+
+/** Import built-in FAQs into CMS so they become editable (skips duplicates). */
+export const importDefaultFaqs = async () => {
+  const existing = await getFaqSection();
+  const seen = new Set(existing.map((item) => faqFingerprint(item)));
+  const added: Array<Record<string, unknown>> = [];
+  for (const def of DEFAULT_FAQ_ITEMS) {
+    const key = (def.question.en || def.question.ar).toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    added.push({
+      id: crypto.randomUUID(),
+      question: def.question,
+      answer: def.answer,
+      createdAt: new Date().toISOString(),
+    });
+  }
+  const next = [...existing, ...added];
+  await upsertSection('FAQ', next);
+  return { faqs: next, imported: added.length };
 };
 
 export const getAllSections = async () => {
@@ -92,24 +228,21 @@ export const deleteSection = async (id: string) => {
 
 // --- FAQ Granular Management ---
 export const addFaqItem = async (data: any) => {
-  const section = await prisma.homePageSection.findUnique({ where: { key: 'FAQ' } });
-  const faqs = (section?.content as any[]) || [];
+  const faqs = await getFaqSection();
   const newItem = { id: crypto.randomUUID(), ...data, createdAt: new Date() };
   faqs.push(newItem);
   return await upsertSection('FAQ', faqs);
 };
 
 export const updateFaqItem = async (itemId: string, data: any) => {
-  const section = await prisma.homePageSection.findUnique({ where: { key: 'FAQ' } });
-  let faqs = (section?.content as any[]) || [];
-  faqs = faqs.map(item => item.id === itemId ? { ...item, ...data } : item);
+  let faqs = await getFaqSection();
+  faqs = faqs.map((item) => (item.id === itemId ? { ...item, ...data } : item));
   return await upsertSection('FAQ', faqs);
 };
 
 export const deleteFaqItem = async (itemId: string) => {
-  const section = await prisma.homePageSection.findUnique({ where: { key: 'FAQ' } });
-  let faqs = (section?.content as any[]) || [];
-  faqs = faqs.filter(item => item.id !== itemId);
+  let faqs = await getFaqSection();
+  faqs = faqs.filter((item) => item.id !== itemId);
   return await upsertSection('FAQ', faqs);
 };
 
