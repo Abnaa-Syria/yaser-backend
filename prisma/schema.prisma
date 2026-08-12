@@ -149,6 +149,12 @@ enum StudyPlanItemStatus {
   SKIPPED
 }
 
+enum FlashcardDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
 enum InstructorApplicationStatus {
   NEW
   REVIEWING
@@ -245,8 +251,11 @@ model User {
   wishlists         Wishlist[]
   posts             Post[]
   playbackNotes     StudentPlaybackNote[]
-  flashcardsCreated Flashcard[]           @relation("FlashcardAuthor")
-  studyPlans        StudyPlan[]
+  flashcardsCreated       Flashcard[]               @relation("FlashcardAuthor")
+  flashcardProgress       FlashcardProgress[]
+  studentFlashcards       StudentFlashcard[]
+  studentFlashcardProgress StudentFlashcardProgress[]
+  studyPlans              StudyPlan[]
 
   // Standalone course purchases (lifetime access)
   coursePurchases CoursePurchase[]
@@ -522,8 +531,9 @@ model Course {
   couponLinks    CouponCourse[]
   pricingTiers   CoursePricingTier[]
   packageItems   CoursePackageItem[]
-  studyPlanItems StudyPlanItem[]
-  trialCourses   TrialCourse[]
+  studyPlanItems     StudyPlanItem[]
+  studentFlashcards  StudentFlashcard[]
+  trialCourses       TrialCourse[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -661,9 +671,10 @@ model Unit {
   course        Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   // Relations
-  sections       Section[]
-  exams          Exam[]
-  studyPlanItems StudyPlanItem[]
+  sections          Section[]
+  exams             Exam[]
+  studyPlanItems    StudyPlanItem[]
+  studentFlashcards StudentFlashcard[]
 
   @@unique([courseId, slug])
   @@index([courseId])
@@ -719,8 +730,9 @@ model Lesson {
   resources      LessonResource[]
   questions      LessonQuestion[]
   exams          Exam[]
-  flashcards     Flashcard[]
-  studyPlanItems StudyPlanItem[]
+  flashcards        Flashcard[]
+  studyPlanItems    StudyPlanItem[]
+  studentFlashcards StudentFlashcard[]
 
   @@unique([sectionId, slug])
   @@index([sectionId])
@@ -1569,6 +1581,8 @@ model Flashcard {
   createdById String?
   createdBy   User?   @relation("FlashcardAuthor", fields: [createdById], references: [id], onDelete: SetNull)
 
+  progress FlashcardProgress[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1576,6 +1590,80 @@ model Flashcard {
   @@index([status])
   @@index([displayOrder])
   @@map("flashcards")
+}
+
+model FlashcardProgress {
+  id          String @id @default(uuid())
+  studentId   String
+  student     User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  flashcardId String
+  flashcard   Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+
+  difficulty     FlashcardDifficulty
+  nextDueAt      DateTime
+  lastReviewedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, flashcardId])
+  @@index([studentId, nextDueAt])
+  @@index([flashcardId])
+  @@map("flashcard_progress")
+}
+
+/// Private flashcards owned by a student (My Flashcards).
+model StudentFlashcard {
+  id        String @id @default(uuid())
+  studentId String
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  front         String  @db.Text
+  frontAr       String? @db.Text
+  back          String  @db.Text
+  backAr        String? @db.Text
+  explanation   String? @db.Text
+  explanationAr String? @db.Text
+
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  unitId   String?
+  unit     Unit?   @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  lessonId String?
+  lesson   Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+
+  displayOrder Int @default(0)
+
+  progress StudentFlashcardProgress[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([courseId])
+  @@index([unitId])
+  @@index([lessonId])
+  @@map("student_flashcards")
+}
+
+model StudentFlashcardProgress {
+  id                 String @id @default(uuid())
+  studentId          String
+  student            User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentFlashcardId String
+  studentFlashcard   StudentFlashcard @relation(fields: [studentFlashcardId], references: [id], onDelete: Cascade)
+
+  difficulty     FlashcardDifficulty
+  nextDueAt      DateTime
+  lastReviewedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, studentFlashcardId])
+  @@index([studentId, nextDueAt])
+  @@index([studentFlashcardId])
+  @@map("student_flashcard_progress")
 }
 
 model CourseReview {

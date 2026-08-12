@@ -1,23 +1,92 @@
-import type { Prisma } from '@prisma/client';
+import type { FlashcardDifficulty, Prisma } from '@prisma/client';
 import { prisma } from '../../../prisma.js';
+import { AppError } from '../../../utils/AppError.js';
+import { hasCourseAccess } from '../../../utils/subscriptionValidator.js';
 
-export async function listMyFlashcards(
-  studentId: string,
-  query: { courseId?: string; unitId?: string; lessonId?: string }
-) {
+const DEFAULT_INTERVALS: Record<FlashcardDifficulty, number> = {
+  EASY: 30,
+  MEDIUM: 7,
+  HARD: 3,
+};
+
+const INTERVAL_KEYS: Record<FlashcardDifficulty, string> = {
+  EASY: 'FLASHCARD_INTERVAL_EASY_DAYS',
+  MEDIUM: 'FLASHCARD_INTERVAL_MEDIUM_DAYS',
+  HARD: 'FLASHCARD_INTERVAL_HARD_DAYS',
+};
+
+function parseDays(value: unknown, fallback: number): number {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return Math.floor(value);
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value);
+    if (Number.isFinite(n) && n >= 0) return Math.floor(n);
+  }
+  return fallback;
+}
+
+export async function getFlashcardIntervals(): Promise<Record<FlashcardDifficulty, number>> {
+  const keys = Object.values(INTERVAL_KEYS);
+  const rows = await prisma.platformSetting.findMany({ where: { key: { in: keys } } });
+  const map = new Map(rows.map((r) => [r.key, r.value]));
+  return {
+    EASY: parseDays(map.get(INTERVAL_KEYS.EASY), DEFAULT_INTERVALS.EASY),
+    MEDIUM: parseDays(map.get(INTERVAL_KEYS.MEDIUM), DEFAULT_INTERVALS.MEDIUM),
+    HARD: parseDays(map.get(INTERVAL_KEYS.HARD), DEFAULT_INTERVALS.HARD),
+  };
+}
+
+function addDays(from: Date, days: number): Date {
+  const d = new Date(from);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
+async function allowedCourseIds(studentId: string, courseId?: string): Promise<string[]> {
   const now = new Date();
   const accessWhere: Prisma.CoursePurchaseWhereInput = {
     studentId,
     OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
   };
-  if (query.courseId) accessWhere.courseId = query.courseId;
-
+  if (courseId) accessWhere.courseId = courseId;
   const purchases = await prisma.coursePurchase.findMany({
     where: accessWhere,
     select: { courseId: true },
   });
-  const allowedCourseIds = purchases.map((purchase) => purchase.courseId);
-  if (allowedCourseIds.length === 0) return [];
+  return purchases.map((p) => p.courseId);
+}
+
+const platformCardSelect = {
+  id: true,
+  lessonId: true,
+  front: true,
+  frontAr: true,
+  back: true,
+  backAr: true,
+  explanation: true,
+  explanationAr: true,
+  displayOrder: true,
+  lesson: {
+    select: {
+      id: true,
+      title: true,
+      titleAr: true,
+      section: {
+        select: {
+          id: true,
+          title: true,
+          unit: { select: { id: true, title: true, titleAr: true, courseId: true } },
+        },
+      },
+    },
+  },
+} as const;
+
+export async function listMyFlashcards(
+  studentId: string,
+  query: { courseId?: string; unitId?: string; lessonId?: string; dueOnly?: boolean }
+) {
+  const courseIds = await allowedCourseIds(studentId, query.courseId);
+  if (courseIds.length === 0) return [];
 
   const where: Prisma.FlashcardWhereInput = {
     status: 'PUBLISHED',
@@ -27,7 +96,7 @@ export async function listMyFlashcards(
       section: {
         deletedAt: null,
         unit: {
-          courseId: { in: allowedCourseIds },
+          courseId: { in: courseIds },
           status: 'PUBLISHED',
         },
       },
@@ -42,40 +111,300 @@ export async function listMyFlashcards(
         deletedAt: null,
         unit: {
           ...(query.unitId ? { id: query.unitId } : {}),
-          courseId: { in: allowedCourseIds },
+          courseId: { in: courseIds },
           status: 'PUBLISHED',
         },
       },
     };
   }
 
-  return prisma.flashcard.findMany({
+  const cards = await prisma.flashcard.findMany({
     where,
     orderBy: [{ lessonId: 'asc' }, { displayOrder: 'asc' }],
-    select: {
-      id: true,
-      lessonId: true,
-      front: true,
-      frontAr: true,
-      back: true,
-      backAr: true,
-      explanation: true,
-      explanationAr: true,
-      displayOrder: true,
+    select: platformCardSelect,
+  });
+
+  if (cards.length === 0) return [];
+
+  const progressRows = await prisma.flashcardProgress.findMany({
+    where: { studentId, flashcardId: { in: cards.map((c) => c.id) } },
+    select: { flashcardId: true, difficulty: true, nextDueAt: true, lastReviewedAt: true },
+  });
+  const progressByCard = new Map(progressRows.map((p) => [p.flashcardId, p]));
+  const now = new Date();
+  const dueOnly = query.dueOnly !== false;
+
+  return cards
+    .map((card) => {
+      const progress = progressByCard.get(card.id);
+      return {
+        ...card,
+        nextDueAt: progress?.nextDueAt ?? null,
+        lastDifficulty: progress?.difficulty ?? null,
+        lastReviewedAt: progress?.lastReviewedAt ?? null,
+        isDue: !progress || progress.nextDueAt <= now,
+      };
+    })
+    .filter((card) => (dueOnly ? card.isDue : true));
+}
+
+export async function reviewPlatformFlashcard(
+  studentId: string,
+  flashcardId: string,
+  difficulty: FlashcardDifficulty
+) {
+  const card = await prisma.flashcard.findFirst({
+    where: {
+      id: flashcardId,
+      status: 'PUBLISHED',
       lesson: {
-        select: {
-          id: true,
-          title: true,
-          titleAr: true,
-          section: {
-            select: {
-              id: true,
-              title: true,
-              unit: { select: { id: true, title: true, titleAr: true, courseId: true } },
-            },
-          },
-        },
+        deletedAt: null,
+        status: 'PUBLISHED',
+        section: { deletedAt: null, unit: { status: 'PUBLISHED' } },
       },
     },
+    select: {
+      id: true,
+      lesson: { select: { section: { select: { unit: { select: { courseId: true } } } } } },
+    },
   });
+  if (!card) throw new AppError('Flashcard not found.', 404);
+
+  const courseId = card.lesson.section.unit.courseId;
+  const allowed = await hasCourseAccess(studentId, courseId);
+  if (!allowed) throw new AppError('You do not have access to this flashcard.', 403);
+
+  const intervals = await getFlashcardIntervals();
+  const now = new Date();
+  const nextDueAt = addDays(now, intervals[difficulty]);
+
+  const progress = await prisma.flashcardProgress.upsert({
+    where: { studentId_flashcardId: { studentId, flashcardId } },
+    create: {
+      studentId,
+      flashcardId,
+      difficulty,
+      nextDueAt,
+      lastReviewedAt: now,
+    },
+    update: {
+      difficulty,
+      nextDueAt,
+      lastReviewedAt: now,
+    },
+  });
+
+  return {
+    flashcardId,
+    difficulty: progress.difficulty,
+    nextDueAt: progress.nextDueAt,
+    lastReviewedAt: progress.lastReviewedAt,
+    intervalDays: intervals[difficulty],
+  };
+}
+
+type PersonalCardInput = {
+  front?: string;
+  frontAr?: string;
+  back?: string;
+  backAr?: string;
+  explanation?: string;
+  explanationAr?: string;
+  courseId?: string | null;
+  unitId?: string | null;
+  lessonId?: string | null;
+  displayOrder?: number;
+};
+
+async function assertOptionalLinkedAccess(studentId: string, data: PersonalCardInput) {
+  const courseId = await resolveLinkedCourseId(data);
+  if (!courseId) return;
+  const allowed = await hasCourseAccess(studentId, courseId);
+  if (!allowed) throw new AppError('You cannot link flashcards to a course you do not currently access.', 403);
+}
+
+async function resolveLinkedCourseId(data: PersonalCardInput) {
+  if (data.courseId) return data.courseId;
+  if (data.unitId) {
+    const unit = await prisma.unit.findUnique({ where: { id: data.unitId }, select: { courseId: true } });
+    return unit?.courseId || null;
+  }
+  if (data.lessonId) {
+    const lesson = await prisma.lesson.findUnique({
+      where: { id: data.lessonId },
+      select: { section: { select: { unit: { select: { courseId: true } } } } },
+    });
+    return lesson?.section.unit.courseId || null;
+  }
+  return null;
+}
+
+const personalInclude = {
+  course: { select: { id: true, title: true, titleAr: true } },
+  unit: { select: { id: true, title: true, titleAr: true, courseId: true } },
+  lesson: { select: { id: true, title: true, titleAr: true } },
+  progress: {
+    select: { difficulty: true, nextDueAt: true, lastReviewedAt: true },
+  },
+} as const;
+
+function mapPersonalCard(card: {
+  id: string;
+  studentId: string;
+  front: string;
+  frontAr: string | null;
+  back: string;
+  backAr: string | null;
+  explanation: string | null;
+  explanationAr: string | null;
+  courseId: string | null;
+  unitId: string | null;
+  lessonId: string | null;
+  displayOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+  course: { id: string; title: string; titleAr: string | null } | null;
+  unit: { id: string; title: string; titleAr: string | null; courseId: string } | null;
+  lesson: { id: string; title: string; titleAr: string | null } | null;
+  progress: { difficulty: FlashcardDifficulty; nextDueAt: Date; lastReviewedAt: Date }[];
+}) {
+  const progress = card.progress[0] || null;
+  const now = new Date();
+  return {
+    id: card.id,
+    front: card.front,
+    frontAr: card.frontAr,
+    back: card.back,
+    backAr: card.backAr,
+    explanation: card.explanation,
+    explanationAr: card.explanationAr,
+    courseId: card.courseId,
+    unitId: card.unitId,
+    lessonId: card.lessonId,
+    displayOrder: card.displayOrder,
+    createdAt: card.createdAt,
+    updatedAt: card.updatedAt,
+    course: card.course,
+    unit: card.unit,
+    lesson: card.lesson,
+    nextDueAt: progress?.nextDueAt ?? null,
+    lastDifficulty: progress?.difficulty ?? null,
+    lastReviewedAt: progress?.lastReviewedAt ?? null,
+    isDue: !progress || progress.nextDueAt <= now,
+  };
+}
+
+export async function listPersonalFlashcards(
+  studentId: string,
+  query: { courseId?: string; unitId?: string; lessonId?: string; dueOnly?: boolean } = {}
+) {
+  const where: Prisma.StudentFlashcardWhereInput = { studentId };
+  if (query.courseId) where.courseId = query.courseId;
+  if (query.unitId) where.unitId = query.unitId;
+  if (query.lessonId) where.lessonId = query.lessonId;
+
+  const cards = await prisma.studentFlashcard.findMany({
+    where,
+    orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
+    include: personalInclude,
+  });
+
+  const dueOnly = query.dueOnly === true;
+  return cards.map(mapPersonalCard).filter((card) => (dueOnly ? card.isDue : true));
+}
+
+export async function createPersonalFlashcard(studentId: string, data: PersonalCardInput) {
+  const front = data.front?.trim();
+  const back = data.back?.trim();
+  if (!front || !back) throw new AppError('Front and back are required.', 400);
+  await assertOptionalLinkedAccess(studentId, data);
+
+  const created = await prisma.studentFlashcard.create({
+    data: {
+      studentId,
+      front,
+      frontAr: data.frontAr?.trim() || null,
+      back,
+      backAr: data.backAr?.trim() || null,
+      explanation: data.explanation?.trim() || null,
+      explanationAr: data.explanationAr?.trim() || null,
+      courseId: data.courseId || null,
+      unitId: data.unitId || null,
+      lessonId: data.lessonId || null,
+      displayOrder: data.displayOrder ?? 0,
+    },
+    include: personalInclude,
+  });
+  return mapPersonalCard(created);
+}
+
+export async function updatePersonalFlashcard(studentId: string, id: string, data: PersonalCardInput) {
+  const existing = await prisma.studentFlashcard.findFirst({ where: { id, studentId } });
+  if (!existing) throw new AppError('Flashcard not found.', 404);
+  await assertOptionalLinkedAccess(studentId, data);
+
+  const updated = await prisma.studentFlashcard.update({
+    where: { id },
+    data: {
+      ...(data.front !== undefined ? { front: data.front.trim() } : {}),
+      ...(data.frontAr !== undefined ? { frontAr: data.frontAr?.trim() || null } : {}),
+      ...(data.back !== undefined ? { back: data.back.trim() } : {}),
+      ...(data.backAr !== undefined ? { backAr: data.backAr?.trim() || null } : {}),
+      ...(data.explanation !== undefined ? { explanation: data.explanation?.trim() || null } : {}),
+      ...(data.explanationAr !== undefined ? { explanationAr: data.explanationAr?.trim() || null } : {}),
+      ...(data.courseId !== undefined ? { courseId: data.courseId || null } : {}),
+      ...(data.unitId !== undefined ? { unitId: data.unitId || null } : {}),
+      ...(data.lessonId !== undefined ? { lessonId: data.lessonId || null } : {}),
+      ...(data.displayOrder !== undefined ? { displayOrder: data.displayOrder } : {}),
+    },
+    include: personalInclude,
+  });
+  return mapPersonalCard(updated);
+}
+
+export async function deletePersonalFlashcard(studentId: string, id: string) {
+  const existing = await prisma.studentFlashcard.findFirst({ where: { id, studentId } });
+  if (!existing) throw new AppError('Flashcard not found.', 404);
+  await prisma.studentFlashcard.delete({ where: { id } });
+  return { id, deleted: true };
+}
+
+export async function reviewPersonalFlashcard(
+  studentId: string,
+  studentFlashcardId: string,
+  difficulty: FlashcardDifficulty
+) {
+  const card = await prisma.studentFlashcard.findFirst({
+    where: { id: studentFlashcardId, studentId },
+    select: { id: true },
+  });
+  if (!card) throw new AppError('Flashcard not found.', 404);
+
+  const intervals = await getFlashcardIntervals();
+  const now = new Date();
+  const nextDueAt = addDays(now, intervals[difficulty]);
+
+  const progress = await prisma.studentFlashcardProgress.upsert({
+    where: { studentId_studentFlashcardId: { studentId, studentFlashcardId } },
+    create: {
+      studentId,
+      studentFlashcardId,
+      difficulty,
+      nextDueAt,
+      lastReviewedAt: now,
+    },
+    update: {
+      difficulty,
+      nextDueAt,
+      lastReviewedAt: now,
+    },
+  });
+
+  return {
+    flashcardId: studentFlashcardId,
+    difficulty: progress.difficulty,
+    nextDueAt: progress.nextDueAt,
+    lastReviewedAt: progress.lastReviewedAt,
+    intervalDays: intervals[difficulty],
+  };
 }

@@ -28,7 +28,7 @@ const linkedContentInclude = {
 type PlanInput = {
   title?: string;
   goal?: string;
-  targetDate?: Date;
+  targetDate?: Date | null;
   isArchived?: boolean;
 };
 
@@ -46,8 +46,8 @@ type PlanItemInput = {
 
 export async function listMyStudyPlans(studentId: string) {
   return prisma.studyPlan.findMany({
-    where: { studentId, isArchived: false },
-    orderBy: { updatedAt: 'desc' },
+    where: { studentId },
+    orderBy: [{ isArchived: 'asc' }, { updatedAt: 'desc' }],
     include: {
       items: {
         orderBy: [{ scheduledAt: 'asc' }, { order: 'asc' }],
@@ -73,9 +73,10 @@ export async function updateStudyPlan(studentId: string, planId: string, data: P
   return prisma.studyPlan.update({
     where: { id: planId },
     data: {
-      ...data,
-      title: data.title?.trim(),
-      goal: data.goal?.trim(),
+      ...(data.title !== undefined ? { title: data.title.trim() } : {}),
+      ...(data.goal !== undefined ? { goal: data.goal?.trim() || null } : {}),
+      ...(data.targetDate !== undefined ? { targetDate: data.targetDate } : {}),
+      ...(data.isArchived !== undefined ? { isArchived: data.isArchived } : {}),
     },
   });
 }

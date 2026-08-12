@@ -8,6 +8,8 @@ const router = Router();
 
 router.use(protect);
 
+router.get('/intervals', controller.getIntervals);
 router.get('/', validate(validation.listFlashcardsSchema), controller.listMyFlashcards);
+router.post('/:id/review', validate(validation.reviewFlashcardSchema), controller.reviewPlatformFlashcard);
 
 export default router;
