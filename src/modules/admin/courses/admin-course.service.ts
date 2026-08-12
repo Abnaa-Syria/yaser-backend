@@ -2,9 +2,26 @@ import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
 import { notDeleted, softDeleteData } from '../../../utils/soft-delete.js';
 import { logAudit } from '../../../services/audit-logger.service.js';
-import { ContentStatus, CourseStaffRole } from '@prisma/client';
+import { ContentStatus, CourseStaffRole, PublishStatus } from '@prisma/client';
 import { platformFeatures } from '../../../config/features.config.js';
 import { courseOwnerRoleFilter, getPlatformInstructorId } from '../../../config/platform-instructor.js';
+
+function normalizeIncludes(value: unknown): string[] | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (Array.isArray(value)) {
+    const items = value.map((v) => String(v ?? '').trim()).filter(Boolean);
+    return items;
+  }
+  if (typeof value === 'string') {
+    const items = value
+      .split(/\r?\n/)
+      .map((v) => v.trim())
+      .filter(Boolean);
+    return items;
+  }
+  return null;
+}
 
 /**
  * Create a new course
@@ -14,6 +31,10 @@ export const createCourse = async (data: any, actorId?: string) => {
   if (!instructorId && !platformFeatures.multiInstructor) {
     instructorId = (await getPlatformInstructorId()) || actorId || undefined;
   }
+
+  const isActive = data.isActive !== undefined ? data.isActive : false;
+  const includesEn = normalizeIncludes(data.includesEn);
+  const includesAr = normalizeIncludes(data.includesAr);
 
   const course = await prisma.course.create({
     data: {
@@ -26,8 +47,11 @@ export const createCourse = async (data: any, actorId?: string) => {
       price: data.price ?? 0,
       isLifetimePurchasable: data.isLifetimePurchasable ?? true,
       type: data.type ?? 'RECORDED',
-      isActive: data.isActive !== undefined ? data.isActive : false,
-      status: ContentStatus.DRAFT,
+      isActive,
+      publishStatus: isActive ? PublishStatus.PUBLISHED : PublishStatus.DRAFT,
+      status: isActive ? ContentStatus.APPROVED : ContentStatus.DRAFT,
+      includesEn: includesEn !== undefined ? (includesEn as any) : undefined,
+      includesAr: includesAr !== undefined ? (includesAr as any) : undefined,
       targetLevels: data.targetLevels ? (data.targetLevels as any) : null,
       pricingTiers: data.pricingTiers ? {
         create: data.pricingTiers.map((tier: any) => ({
@@ -65,6 +89,16 @@ export const createCourse = async (data: any, actorId?: string) => {
  */
 export const updateCourse = async (id: string, data: any, actorId?: string) => {
   return prisma.$transaction(async (tx) => {
+    const includesEn = normalizeIncludes(data.includesEn);
+    const includesAr = normalizeIncludes(data.includesAr);
+    const publishPatch: { publishStatus?: PublishStatus; status?: ContentStatus } = {};
+    if (data.isActive === true) {
+      publishPatch.publishStatus = PublishStatus.PUBLISHED;
+      publishPatch.status = ContentStatus.APPROVED;
+    } else if (data.isActive === false) {
+      publishPatch.publishStatus = PublishStatus.DRAFT;
+    }
+
     const course = await tx.course.update({
       where: { id },
       data: {
@@ -83,6 +117,9 @@ export const updateCourse = async (id: string, data: any, actorId?: string) => {
         type: data.type,
         instructorId: data.instructorId,
         targetLevels: data.targetLevels !== undefined ? (data.targetLevels as any) : undefined,
+        ...(includesEn !== undefined ? { includesEn: includesEn as any } : {}),
+        ...(includesAr !== undefined ? { includesAr: includesAr as any } : {}),
+        ...publishPatch,
       },
       select: {
         id: true,
@@ -311,12 +348,13 @@ export const approveCourse = async (
     where: { id: courseId },
     data: {
       status: ContentStatus.APPROVED,
+      publishStatus: PublishStatus.PUBLISHED,
       isActive: true,
       reviewedById: reviewerId,
       reviewNotes: reviewNotes ?? null,
       rejectionReason: null,
     },
-    select: { id: true, title: true, status: true },
+    select: { id: true, title: true, status: true, publishStatus: true },
   });
   await logAudit({
     userId: reviewerId,
@@ -338,6 +376,7 @@ export const rejectCourse = async (
     where: { id: courseId },
     data: {
       status: ContentStatus.REJECTED,
+      publishStatus: PublishStatus.DRAFT,
       isActive: false,
       reviewedById: reviewerId,
       rejectionReason,

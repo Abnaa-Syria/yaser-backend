@@ -118,17 +118,17 @@ export const getInstructorCourses = async (id: string) => {
       ...notDeleted(),
       isActive: true,
       instructorId,
-      publishStatus: 'PUBLISHED',
-      status: 'APPROVED',
     },
     select: {
       id: true,
       title: true,
+      titleAr: true,
       description: true,
       thumbnail: true,
       type: true,
       price: true,
     },
+    orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
   });
 };
 

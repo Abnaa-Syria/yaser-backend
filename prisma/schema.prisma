@@ -481,6 +481,10 @@ model Course {
   shortDescriptionAr String?       @db.Text
   description        String?       @db.Text
   descriptionAr      String?       @db.Text
+  /// Bullet list shown on the public course page (English). One string per item.
+  includesEn         Json?
+  /// Bullet list shown on the public course page (Arabic). One string per item.
+  includesAr         Json?
   thumbnail          String?
   coverImage         String?       @db.Text
   introVideoUrl      String?
@@ -891,8 +895,12 @@ model InstructorReview {
   instructorId String
   instructor   User   @relation("InstructorReviews", fields: [instructorId], references: [id], onDelete: Cascade)
 
-  studentId String
-  student   User   @relation("StudentReviews", fields: [studentId], references: [id], onDelete: Cascade)
+  /// Optional link to a real student account. Admin testimonials may omit this.
+  studentId String?
+  student   User?   @relation("StudentReviews", fields: [studentId], references: [id], onDelete: Cascade)
+
+  /// Display name for admin-authored testimonials (used when studentId is null).
+  displayName String?
 
   rating  Int     @default(5)
   comment String? @db.Text
@@ -904,6 +912,7 @@ model InstructorReview {
   updatedAt DateTime @updatedAt
 
   @@unique([instructorId, studentId])
+  @@index([instructorId, isVisible])
   @@map("instructor_reviews")
 }
 

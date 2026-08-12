@@ -324,6 +324,8 @@ export const getPublicCourseById = async (id: string) => {
       price: true,
         isFeatured: true,
       isLifetimePurchasable: true,
+      includesEn: true,
+      includesAr: true,
       category: {
         select: { id: true, name: true, nameAr: true, slug: true },
       },

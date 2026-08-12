@@ -74,6 +74,7 @@ import studentGamificationRoutes from '../modules/student/gamification/gamificat
 import publicInstructorApplicationRoutes from '../modules/public/instructor-applications/public-instructor-application.routes.js';
 import adminInstructorApplicationRoutes from '../modules/admin/instructor-applications/admin-instructor-application.routes.js';
 import adminGamificationRoutes from '../modules/admin/gamification/admin-gamification.routes.js';
+import adminInstructorReviewRoutes from '../modules/admin/instructor-reviews/admin-instructor-review.routes.js';
 import publicSitemapRoutes from '../modules/public/sitemap/public-sitemap.routes.js';
 import publicPrivateSessionRequestRoutes from '../modules/public/private-session-requests/public-private-session-request.routes.js';
 import adminPrivateSessionRequestRoutes from '../modules/admin/private-session-requests/admin-private-session-request.routes.js';
@@ -148,6 +149,7 @@ apiRouter.use('/admin/dashboard', adminDashboardRoutes);
 apiRouter.use('/admin/enrollments', adminEnrollmentRoutes);
 apiRouter.use('/admin/settings', adminSettingsRoutes);
 apiRouter.use('/admin/gamification', adminGamificationRoutes);
+apiRouter.use('/admin/instructor-reviews', adminInstructorReviewRoutes);
 apiRouter.use('/admin/trial', adminTrialRoutes);
 apiRouter.use('/admin/roles', adminRoleRoutes);
 apiRouter.use('/admin/audit-logs', adminAuditLogRoutes);
