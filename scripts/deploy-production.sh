@@ -34,7 +34,7 @@ deploy_git_repo() {
 log "=== BACKEND ==="
 deploy_git_repo "$BACKEND_DIR"
 cd "$BACKEND_DIR"
-npm ci
+npm install --no-audit --no-fund
 npx prisma generate
 npm run build
 pm2 restart "$PM2_APP"
