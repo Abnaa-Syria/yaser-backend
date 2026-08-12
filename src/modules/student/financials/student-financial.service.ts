@@ -38,38 +38,6 @@ export const createCoursePurchasePayment = async (
       throw new AppError('You already own this course.', 409);
     }
 
-    const pendingExisting = await tx.payment.findFirst({
-      where: {
-        studentId,
-        courseId,
-        availabilityId: null,
-        subscriptionId: null,
-        status: 'PENDING',
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (pendingExisting) {
-      // Re-submit: refresh proof / method on the same pending payment (no duplicate rows).
-      if (!data.receiptUrl) {
-        throw new AppError('Receipt URL is required for paid purchases.', 400);
-      }
-      const updated = await tx.payment.update({
-        where: { id: pendingExisting.id },
-        data: {
-          paymentMethod: data.paymentMethod || pendingExisting.paymentMethod,
-          receiptUrl: data.receiptUrl,
-          studentNote: data.studentNote?.trim() || pendingExisting.studentNote,
-          pricingTierId: data.pricingTierId || pendingExisting.pricingTierId,
-          paymentDestinationSnapshot: {
-            paymentMethod: data.paymentMethod,
-            ...PAYMENT_CONFIG,
-          },
-        },
-      });
-      return { payment: updated, reusedPending: true as const };
-    }
-
     let basePrice = Number(course.price);
     let pricingTier = null;
 
@@ -81,10 +49,8 @@ export const createCoursePurchasePayment = async (
         throw new AppError('Selected pricing tier not found or inactive.', 404);
       }
       basePrice = Number(pricingTier.price);
-    } else {
-      if (!course.isLifetimePurchasable) {
-        throw new AppError('This course is not available for individual purchase.', 400);
-      }
+    } else if (!course.isLifetimePurchasable) {
+      throw new AppError('This course is not available for individual purchase.', 400);
     }
 
     if (Number.isNaN(basePrice) || basePrice < 0) {
@@ -99,6 +65,47 @@ export const createCoursePurchasePayment = async (
 
     if (Number.isNaN(amount) || amount < 0) {
       throw new AppError('Course price is not configured.', 400);
+    }
+
+    const pendingExisting = await tx.payment.findFirst({
+      where: {
+        studentId,
+        courseId,
+        availabilityId: null,
+        subscriptionId: null,
+        status: 'PENDING',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (pendingExisting) {
+      // Re-submit: refresh proof, method, tier, and amount on the same pending row.
+      if (amount > 0 && !data.receiptUrl) {
+        throw new AppError('Receipt URL is required for paid purchases.', 400);
+      }
+      const updated = await tx.payment.update({
+        where: { id: pendingExisting.id },
+        data: {
+          paymentMethod: data.paymentMethod || pendingExisting.paymentMethod,
+          receiptUrl: data.receiptUrl || pendingExisting.receiptUrl,
+          studentNote: data.studentNote?.trim() || pendingExisting.studentNote,
+          pricingTierId: data.pricingTierId || null,
+          amount,
+          priceSnapshot: {
+            courseId,
+            courseTitle: course.title,
+            pricingTierId: data.pricingTierId || null,
+            basePrice,
+            finalAmount: amount,
+            couponCode: data.couponCode || null,
+          },
+          paymentDestinationSnapshot: {
+            paymentMethod: data.paymentMethod,
+            ...PAYMENT_CONFIG,
+          },
+        },
+      });
+      return { payment: updated, reusedPending: true as const };
     }
 
     // 1. Free Course: Instant Enrollment
@@ -214,34 +221,6 @@ export const createPackagePurchasePayment = async (
       throw new AppError('Package does not contain courses.', 400);
     }
 
-    const pendingExisting = await tx.payment.findFirst({
-      where: {
-        studentId,
-        coursePackageId: packageId,
-        status: 'PENDING',
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (pendingExisting) {
-      if (!data.receiptUrl) {
-        throw new AppError('Receipt URL is required for paid purchases.', 400);
-      }
-      const updated = await tx.payment.update({
-        where: { id: pendingExisting.id },
-        data: {
-          paymentMethod: data.paymentMethod || pendingExisting.paymentMethod,
-          receiptUrl: data.receiptUrl,
-          studentNote: data.studentNote?.trim() || pendingExisting.studentNote,
-          coursePackagePricingTierId: data.pricingTierId || pendingExisting.coursePackagePricingTierId,
-          paymentDestinationSnapshot: {
-            paymentMethod: data.paymentMethod,
-            ...PAYMENT_CONFIG,
-          },
-        },
-      });
-      return { payment: updated, reusedPending: true as const };
-    }
-
     let pricingTier = null;
     let basePrice = Number(coursePackage.price);
     if (data.pricingTierId) {
@@ -256,6 +235,43 @@ export const createPackagePurchasePayment = async (
     if (data.couponCode) {
       const coupon = await validateCoupon(studentId, data.couponCode, 'PACKAGE', packageId);
       amount = applyCouponDiscount(basePrice, coupon);
+    }
+
+    const pendingExisting = await tx.payment.findFirst({
+      where: {
+        studentId,
+        coursePackageId: packageId,
+        status: 'PENDING',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (pendingExisting) {
+      if (amount > 0 && !data.receiptUrl) {
+        throw new AppError('Receipt URL is required for paid purchases.', 400);
+      }
+      const updated = await tx.payment.update({
+        where: { id: pendingExisting.id },
+        data: {
+          paymentMethod: data.paymentMethod || pendingExisting.paymentMethod,
+          receiptUrl: data.receiptUrl || pendingExisting.receiptUrl,
+          studentNote: data.studentNote?.trim() || pendingExisting.studentNote,
+          coursePackagePricingTierId: data.pricingTierId || null,
+          amount,
+          priceSnapshot: {
+            packageId,
+            packageTitle: coursePackage.title,
+            pricingTierId: data.pricingTierId || null,
+            basePrice,
+            finalAmount: amount,
+            couponCode: data.couponCode || null,
+          },
+          paymentDestinationSnapshot: {
+            paymentMethod: data.paymentMethod,
+            ...PAYMENT_CONFIG,
+          },
+        },
+      });
+      return { payment: updated, reusedPending: true as const };
     }
 
     const accessStartsAt = new Date();
