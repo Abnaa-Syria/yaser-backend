@@ -66,17 +66,14 @@ function isAlwaysAllowed(req: Request): boolean {
   return authAllow.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }
 
-function isStaffBypassPath(path: string): boolean {
-  return path.startsWith('/admin') || path.startsWith('/profile') || path.startsWith('/media');
-}
-
 export const maintenanceGuard = catchAsync(async (req: Request, _res: Response, next: NextFunction) => {
   const enabled = await isMaintenanceModeEnabled();
   if (!enabled) return next();
 
   if (isAlwaysAllowed(req)) return next();
 
-  if (isStaffBypassPath(req.path) && (await isMaintenanceStaff(req))) {
+  // Authenticated platform staff may use the full API (admin panel + preview).
+  if (await isMaintenanceStaff(req)) {
     return next();
   }
 
