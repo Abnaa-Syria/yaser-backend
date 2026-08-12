@@ -1,24 +1,117 @@
+import { LearningResourceType } from '@prisma/client';
 import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
 
-export const createResource = async (
-  lessonId: string,
-  data: {
-    title: string;
-    fileUrl: string;
-    fileType?: string;
-    resourceType?: 'VIDEO_HLS' | 'PDF' | 'PPT' | 'IMAGE' | 'LINK' | 'DOCUMENT';
+type ResourceInput = {
+  title: string;
+  fileUrl: string;
+  fileType?: string;
+  mimeType?: string;
+  fileSizeBytes?: number;
+  resourceType?: LearningResourceType;
+  isDownloadable?: boolean;
+  isVisible?: boolean;
+};
+
+function inferResourceMeta(input: {
+  fileUrl?: string;
+  mimeType?: string;
+  fileType?: string;
+  originalName?: string;
+  resourceType?: LearningResourceType;
+}) {
+  const name = `${input.originalName || ''} ${input.fileUrl || ''}`.toLowerCase();
+  const mime = (input.mimeType || '').toLowerCase();
+  const hinted = (input.fileType || '').toUpperCase();
+
+  let resourceType: LearningResourceType = input.resourceType || LearningResourceType.DOCUMENT;
+  let fileType = hinted || 'FILE';
+
+  if (mime.includes('pdf') || name.endsWith('.pdf') || hinted === 'PDF') {
+    resourceType = LearningResourceType.PDF;
+    fileType = 'PDF';
+  } else if (
+    mime.includes('presentation') ||
+    mime.includes('powerpoint') ||
+    name.endsWith('.ppt') ||
+    name.endsWith('.pptx') ||
+    hinted === 'PPT' ||
+    hinted === 'PPTX'
+  ) {
+    resourceType = LearningResourceType.PPT;
+    fileType = name.endsWith('.ppt') || hinted === 'PPT' ? 'PPT' : 'PPTX';
+  } else if (
+    mime.includes('word') ||
+    mime.includes('msword') ||
+    name.endsWith('.doc') ||
+    name.endsWith('.docx') ||
+    hinted === 'DOC' ||
+    hinted === 'DOCX' ||
+    hinted === 'DOCUMENT'
+  ) {
+    resourceType = LearningResourceType.DOCUMENT;
+    fileType = name.endsWith('.doc') || hinted === 'DOC' ? 'DOC' : 'DOCX';
+  } else if (mime.startsWith('image/') || hinted === 'IMAGE') {
+    resourceType = LearningResourceType.IMAGE;
+    fileType = 'IMAGE';
   }
-) => {
+
+  return { resourceType, fileType };
+}
+
+export const createResource = async (lessonId: string, data: ResourceInput) => {
   const lesson = await prisma.lesson.findUnique({ where: { id: lessonId } });
   if (!lesson) throw new AppError('Lesson not found', 404);
 
-  return await prisma.lessonResource.create({
+  const meta = inferResourceMeta(data);
+
+  return prisma.lessonResource.create({
     data: {
       lessonId,
-      resourceType: data.resourceType ?? 'PDF',
-      ...data,
+      title: data.title.trim(),
+      fileUrl: data.fileUrl,
+      fileType: meta.fileType,
+      mimeType: data.mimeType || null,
+      fileSizeBytes: data.fileSizeBytes ?? null,
+      resourceType: meta.resourceType,
+      isDownloadable: data.isDownloadable !== false,
+      isVisible: data.isVisible !== false,
     },
+  });
+};
+
+export const createResourceFromUpload = async (
+  lessonId: string,
+  file: Express.Multer.File,
+  title?: string
+) => {
+  if (!file) throw new AppError('A file is required', 400);
+
+  const fileUrl = `/uploads/lesson-resources/${file.filename}`;
+  const displayTitle = (title || file.originalname || 'Lesson file').trim() || 'Lesson file';
+  const meta = inferResourceMeta({
+    fileUrl,
+    mimeType: file.mimetype,
+    originalName: file.originalname,
+  });
+
+  return createResource(lessonId, {
+    title: displayTitle,
+    fileUrl,
+    fileType: meta.fileType,
+    mimeType: file.mimetype,
+    fileSizeBytes: file.size,
+    resourceType: meta.resourceType,
+  });
+};
+
+export const listLessonResources = async (lessonId: string) => {
+  const lesson = await prisma.lesson.findUnique({ where: { id: lessonId }, select: { id: true } });
+  if (!lesson) throw new AppError('Lesson not found', 404);
+
+  return prisma.lessonResource.findMany({
+    where: { lessonId },
+    orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
   });
 };
 

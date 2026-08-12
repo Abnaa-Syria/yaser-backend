@@ -6,9 +6,27 @@ export const createResourceSchema = z.object({
     lessonId: z.string().uuid(),
   }),
   body: z.object({
-    title: z.string().min(3).max(255),
+    title: z.string().min(1).max(255),
     fileUrl: requiredMediaUrl,
     fileType: z.string().optional(),
+    mimeType: z.string().optional(),
+    fileSizeBytes: z.coerce.number().int().nonnegative().optional(),
+    resourceType: z.enum(['VIDEO_HLS', 'PDF', 'PPT', 'IMAGE', 'LINK', 'DOCUMENT']).optional(),
+  }),
+});
+
+export const lessonIdParamSchema = z.object({
+  params: z.object({
+    lessonId: z.string().uuid(),
+  }),
+});
+
+export const uploadResourceSchema = z.object({
+  params: z.object({
+    lessonId: z.string().uuid(),
+  }),
+  body: z.object({
+    title: z.string().min(1).max(255).optional(),
   }),
 });
 
