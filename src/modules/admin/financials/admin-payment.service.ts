@@ -7,6 +7,10 @@ import { platformFeatures } from '../../../config/features.config.js';
 import { calculateAccessExpiresAt, durationDaysFromParts } from '../../payments/access-window.js';
 import { sendTemplatedEmail } from '../../../utils/mail.js';
 import { APP_BRAND } from '../../../config/brand.config.js';
+import {
+  maybeRecordCouponForPaymentTx,
+  maybeReverseCouponForPaymentTx,
+} from '../../student/coupons/student-coupon.service.js';
 
 function paymentCreditShape(payment: {
   id: string;
@@ -213,6 +217,40 @@ async function fulfillPaidPaymentTx(
   return purchased;
 }
 
+/** Revoke enrollments granted by a payment (refunds / chargebacks). */
+async function revokePaymentAccessTx(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  payment: {
+    id: string;
+    studentId: string;
+    courseId: string | null;
+    coursePackageId: string | null;
+    availabilityId: string | null;
+    priceSnapshot?: unknown;
+  }
+) {
+  const now = new Date();
+
+  await tx.coursePurchase.updateMany({
+    where: { paymentId: payment.id },
+    data: { expiresAt: now },
+  });
+
+  await tx.coursePackagePurchase.updateMany({
+    where: { paymentId: payment.id },
+    data: { expiresAt: now },
+  });
+
+  if (payment.availabilityId) {
+    await tx.instructorAvailability.updateMany({
+      where: { id: payment.availabilityId, status: 'BOOKED' },
+      data: { status: 'AVAILABLE' },
+    });
+  }
+
+  await maybeReverseCouponForPaymentTx(tx, payment);
+}
+
 async function calculatePaymentAccessExpiresAtTx(
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
   payment: {
@@ -285,6 +323,14 @@ export const approvePayment = async (
     });
 
     const purchased = await fulfillPaidPaymentTx(tx, payment, accessStartsAt);
+
+    await maybeRecordCouponForPaymentTx(tx, {
+      studentId: payment.studentId,
+      amount: payment.amount,
+      courseId: payment.courseId,
+      coursePackageId: payment.coursePackageId,
+      priceSnapshot: payment.priceSnapshot,
+    });
 
     const message = purchased
       ? `Your payment of ${payment.amount} has been approved. You now have lifetime access to this course.`
@@ -436,6 +482,17 @@ export const updatePaymentStatus = async (
 
     if (status === 'PAID' && !wasPaid) {
       await fulfillPaidPaymentTx(tx, updated, data.accessStartsAt || accessStartsAt);
+      await maybeRecordCouponForPaymentTx(tx, {
+        studentId: updated.studentId,
+        amount: updated.amount,
+        courseId: updated.courseId,
+        coursePackageId: updated.coursePackageId,
+        priceSnapshot: updated.priceSnapshot,
+      });
+    }
+
+    if (status === 'REFUNDED' && wasPaid) {
+      await revokePaymentAccessTx(tx, updated);
     }
 
     return updated;

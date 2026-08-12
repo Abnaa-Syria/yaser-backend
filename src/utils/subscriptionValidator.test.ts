@@ -1,39 +1,60 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const findUnique = vi.fn();
+const findUniquePurchase = vi.fn();
+const findFirstSubscription = vi.fn();
+const findFirstCourse = vi.fn();
 
 vi.mock('../prisma.js', () => ({
   prisma: {
     coursePurchase: {
-      findUnique,
+      findUnique: findUniquePurchase,
+    },
+    userSubscription: {
+      findFirst: findFirstSubscription,
+    },
+    course: {
+      findFirst: findFirstCourse,
     },
   },
 }));
 
-const { hasCourseAccess } = await import('./subscriptionValidator.js');
+const { hasCourseAccess, hasActiveSubscription } = await import('./subscriptionValidator.js');
 
 describe('course access validation', () => {
   beforeEach(() => {
-    findUnique.mockReset();
+    findUniquePurchase.mockReset();
+    findFirstSubscription.mockReset();
+    findFirstCourse.mockReset();
+    findFirstSubscription.mockResolvedValue(null);
+    findFirstCourse.mockResolvedValue(null);
   });
 
   it('denies access when no purchase exists', async () => {
-    findUnique.mockResolvedValue(null);
+    findUniquePurchase.mockResolvedValue(null);
 
     await expect(hasCourseAccess('student-1', 'course-1')).resolves.toBe(false);
   });
 
   it('denies access when purchase is expired', async () => {
-    findUnique.mockResolvedValue({ expiresAt: new Date(Date.now() - 1000) });
+    findUniquePurchase.mockResolvedValue({ expiresAt: new Date(Date.now() - 1000) });
 
     await expect(hasCourseAccess('student-1', 'course-1')).resolves.toBe(false);
   });
 
   it('allows access for unexpired or lifetime purchases', async () => {
-    findUnique.mockResolvedValueOnce({ expiresAt: new Date(Date.now() + 1000) });
+    findUniquePurchase.mockResolvedValueOnce({ expiresAt: new Date(Date.now() + 1000) });
     await expect(hasCourseAccess('student-1', 'course-1')).resolves.toBe(true);
 
-    findUnique.mockResolvedValueOnce({ expiresAt: null });
+    findUniquePurchase.mockResolvedValueOnce({ expiresAt: null });
     await expect(hasCourseAccess('student-1', 'course-1')).resolves.toBe(true);
+  });
+
+  it('allows access through an active platform subscription', async () => {
+    findUniquePurchase.mockResolvedValue(null);
+    findFirstSubscription.mockResolvedValue({ id: 'sub-1' });
+    findFirstCourse.mockResolvedValue({ id: 'course-1' });
+
+    await expect(hasCourseAccess('student-1', 'course-1')).resolves.toBe(true);
+    await expect(hasActiveSubscription('student-1')).resolves.toBe(true);
   });
 });

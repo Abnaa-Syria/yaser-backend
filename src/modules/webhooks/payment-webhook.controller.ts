@@ -61,14 +61,19 @@ export const handlePaymentWebhook = catchAsync(async (req: Request, res: Respons
     });
   }
 
-  // Do not auto-fulfill enrollment from unsigned/generic payloads.
-  // Store the event only; admin approval remains the access path.
+  const paymentId =
+    (req.headers['x-payment-id'] as string) ||
+    (req.body?.paymentId as string) ||
+    (req.body?.payment_id as string) ||
+    undefined;
+
+  // Do not auto-fulfill enrollment — store and link the event for admin audit trails.
   const result = await webhookService.ingestPaymentWebhook({
     gatewayEventId,
     gatewayProvider: String(req.params.provider),
     eventType: req.body?.type as string | undefined,
     payload: req.body,
-    paymentId: undefined,
+    paymentId,
   });
 
   successResponse({

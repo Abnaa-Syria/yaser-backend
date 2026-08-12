@@ -7,6 +7,7 @@ import { platformFeatures } from '../../../config/features.config.js';
 import { calculateAccessExpiresAt, durationDaysFromParts } from '../../payments/access-window.js';
 import { sendTemplatedEmail } from '../../../utils/mail.js';
 import { APP_BRAND } from '../../../config/brand.config.js';
+import { maybeRecordCouponForPaymentTx, maybeReverseCouponForPaymentTx, } from '../../student/coupons/student-coupon.service.js';
 function paymentCreditShape(payment) {
     return {
         id: payment.id,
@@ -177,6 +178,25 @@ async function fulfillPaidPaymentTx(tx, payment, accessStartsAt = new Date()) {
     }
     return purchased;
 }
+/** Revoke enrollments granted by a payment (refunds / chargebacks). */
+async function revokePaymentAccessTx(tx, payment) {
+    const now = new Date();
+    await tx.coursePurchase.updateMany({
+        where: { paymentId: payment.id },
+        data: { expiresAt: now },
+    });
+    await tx.coursePackagePurchase.updateMany({
+        where: { paymentId: payment.id },
+        data: { expiresAt: now },
+    });
+    if (payment.availabilityId) {
+        await tx.instructorAvailability.updateMany({
+            where: { id: payment.availabilityId, status: 'BOOKED' },
+            data: { status: 'AVAILABLE' },
+        });
+    }
+    await maybeReverseCouponForPaymentTx(tx, payment);
+}
 async function calculatePaymentAccessExpiresAtTx(tx, payment, accessStartsAt) {
     if (payment.pricingTierId) {
         const tier = await tx.coursePricingTier.findUnique({ where: { id: payment.pricingTierId } });
@@ -228,6 +248,13 @@ export const approvePayment = async (paymentId, reviewerId, adminNote) => {
             },
         });
         const purchased = await fulfillPaidPaymentTx(tx, payment, accessStartsAt);
+        await maybeRecordCouponForPaymentTx(tx, {
+            studentId: payment.studentId,
+            amount: payment.amount,
+            courseId: payment.courseId,
+            coursePackageId: payment.coursePackageId,
+            priceSnapshot: payment.priceSnapshot,
+        });
         const message = purchased
             ? `Your payment of ${payment.amount} has been approved. You now have lifetime access to this course.`
             : payment.availabilityId
@@ -343,6 +370,16 @@ export const updatePaymentStatus = async (paymentId, status) => {
         const updated = await tx.payment.update({ where: { id: paymentId }, data });
         if (status === 'PAID' && !wasPaid) {
             await fulfillPaidPaymentTx(tx, updated, data.accessStartsAt || accessStartsAt);
+            await maybeRecordCouponForPaymentTx(tx, {
+                studentId: updated.studentId,
+                amount: updated.amount,
+                courseId: updated.courseId,
+                coursePackageId: updated.coursePackageId,
+                priceSnapshot: updated.priceSnapshot,
+            });
+        }
+        if (status === 'REFUNDED' && wasPaid) {
+            await revokePaymentAccessTx(tx, updated);
         }
         return updated;
     });

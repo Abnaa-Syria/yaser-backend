@@ -103,10 +103,10 @@ export const getPublicPostBySlug = async (slug) => {
 };
 export const getLandingPageData = async () => {
     const [sections, featuredReviews, activePackages, studentCount, courseCount, instructorCount] = await Promise.all([
-        // 1. Get all visible dynamic sections (FAQ, About, etc)
+        // Include hidden sections so the SPA can distinguish "no CMS" vs "intentionally hidden"
+        // instead of falling back to hardcoded marketing copy when isVisible=false.
         prisma.homePageSection.findMany({
-            where: { isVisible: true },
-            orderBy: { order: 'asc' }
+            orderBy: { order: 'asc' },
         }),
         // 2. Get high-rated visible reviews for social proof
         prisma.courseReview.findMany({

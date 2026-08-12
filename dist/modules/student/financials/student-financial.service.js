@@ -1,8 +1,13 @@
 import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
-import { applyCouponDiscount, validateCoupon } from '../coupons/student-coupon.service.js';
+import { applyCouponDiscount, validateCoupon, maybeRecordCouponForPaymentTx } from '../coupons/student-coupon.service.js';
 import { calculateAccessExpiresAt, durationDaysFromParts } from '../../payments/access-window.js';
 import { PAYMENT_CONFIG } from '../../../config/payment.config.js';
+function isPurchaseAccessActive(expiresAt) {
+    if (!expiresAt)
+        return true;
+    return expiresAt.getTime() > Date.now();
+}
 /**
  * Course lifetime purchase: pending payment at course.price.
  * Admin approval creates CoursePurchase and triggers commission allocation.
@@ -23,7 +28,7 @@ export const createCoursePurchasePayment = async (studentId, courseId, data) => 
         const existingPurchase = await tx.coursePurchase.findUnique({
             where: { studentId_courseId: { studentId, courseId } },
         });
-        if (existingPurchase) {
+        if (existingPurchase && isPurchaseAccessActive(existingPurchase.expiresAt)) {
             throw new AppError('You already own this course.', 409);
         }
         const pendingExisting = await tx.payment.findFirst({
@@ -92,11 +97,20 @@ export const createCoursePurchasePayment = async (studentId, courseId, data) => 
                         pricingTierId: data.pricingTierId || null,
                         basePrice,
                         finalAmount: amount,
+                        couponCode: data.couponCode || null,
                     },
                 },
             });
-            await tx.coursePurchase.create({
-                data: {
+            await tx.coursePurchase.upsert({
+                where: { studentId_courseId: { studentId, courseId } },
+                update: {
+                    paymentId: payment.id,
+                    pricingTierId: data.pricingTierId || null,
+                    accessStartsAt: payment.accessStartsAt,
+                    activatedAt: payment.activatedAt,
+                    expiresAt,
+                },
+                create: {
                     studentId,
                     courseId,
                     paymentId: payment.id,
@@ -105,6 +119,12 @@ export const createCoursePurchasePayment = async (studentId, courseId, data) => 
                     activatedAt: payment.activatedAt,
                     expiresAt,
                 },
+            });
+            await maybeRecordCouponForPaymentTx(tx, {
+                studentId,
+                amount,
+                courseId,
+                priceSnapshot: payment.priceSnapshot,
             });
             return { payment, reusedPending: false, enrolledInstantly: true };
         }
@@ -201,6 +221,7 @@ export const createPackagePurchasePayment = async (studentId, packageId, data) =
                         pricingTierId: data.pricingTierId || null,
                         basePrice,
                         finalAmount: amount,
+                        couponCode: data.couponCode || null,
                     },
                 },
             });
@@ -230,6 +251,12 @@ export const createPackagePurchasePayment = async (studentId, packageId, data) =
                     create: { studentId, courseId: item.courseId, paymentId: payment.id, accessStartsAt, activatedAt: accessStartsAt, expiresAt },
                 });
             }
+            await maybeRecordCouponForPaymentTx(tx, {
+                studentId,
+                amount,
+                coursePackageId: packageId,
+                priceSnapshot: payment.priceSnapshot,
+            });
             return { payment, reusedPending: false, enrolledInstantly: true };
         }
         if (!data.receiptUrl) {
