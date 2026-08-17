@@ -81,6 +81,9 @@ export const updateRole = async (
 ) => {
   const role = await prisma.role.findUnique({ where: { id } });
   if (!role) throw new AppError('Role not found', 404);
+  if (role.name === 'SUPER_ADMIN' && payload.permissions) {
+    throw new AppError('SUPER_ADMIN always has full access and cannot have permissions reduced.', 400);
+  }
   if (role.isSystemRole && payload.name && payload.name !== role.name) {
     throw new AppError('System roles cannot be renamed', 400);
   }
@@ -131,6 +134,9 @@ export const deleteRole = async (id: string) => {
 export const setRolePermissions = async (id: string, permissions: string[]) => {
   const role = await prisma.role.findUnique({ where: { id } });
   if (!role) throw new AppError('Role not found', 404);
+  if (role.name === 'SUPER_ADMIN') {
+    throw new AppError('SUPER_ADMIN always has full access and cannot have permissions reduced.', 400);
+  }
 
   const foundPermissions = await ensurePermissionsExist(permissions);
 
