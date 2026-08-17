@@ -4,6 +4,14 @@ import { applyCouponDiscount, validateCoupon, maybeRecordCouponForPaymentTx } fr
 import { calculateAccessExpiresAt, durationDaysFromParts } from '../../payments/access-window.js';
 import { PAYMENT_CONFIG } from '../../../config/payment.config.js';
 
+function buildPaymentDestinationSnapshot(data: { paymentMethod: string; paymentCountry?: string }) {
+  return {
+    paymentMethod: data.paymentMethod,
+    paymentCountry: data.paymentCountry || null,
+    ...PAYMENT_CONFIG,
+  };
+}
+
 function isPurchaseAccessActive(expiresAt: Date | null | undefined) {
   if (!expiresAt) return true;
   return expiresAt.getTime() > Date.now();
@@ -16,7 +24,7 @@ function isPurchaseAccessActive(expiresAt: Date | null | undefined) {
 export const createCoursePurchasePayment = async (
   studentId: string,
   courseId: string,
-  data: { paymentMethod: string; receiptUrl?: string; couponCode?: string; pricingTierId?: string; studentNote?: string }
+  data: { paymentMethod: string; paymentCountry?: string; receiptUrl?: string; couponCode?: string; pricingTierId?: string; studentNote?: string }
 ) => {
   return prisma.$transaction(async (tx) => {
     const course = await tx.course.findFirst({
@@ -108,10 +116,7 @@ export const createCoursePurchasePayment = async (
             finalAmount: amount,
             couponCode: data.couponCode || null,
           },
-          paymentDestinationSnapshot: {
-            paymentMethod: data.paymentMethod,
-            ...PAYMENT_CONFIG,
-          },
+          paymentDestinationSnapshot: buildPaymentDestinationSnapshot(data),
         },
       });
       return { payment: updated, reusedPending: true as const };
@@ -193,10 +198,7 @@ export const createCoursePurchasePayment = async (
         paymentMethod: data.paymentMethod,
         receiptUrl: data.receiptUrl,
         studentNote: data.studentNote?.trim() || null,
-        paymentDestinationSnapshot: {
-          paymentMethod: data.paymentMethod,
-          ...PAYMENT_CONFIG,
-        },
+        paymentDestinationSnapshot: buildPaymentDestinationSnapshot(data),
         priceSnapshot: {
           courseId,
           courseTitle: course.title,
@@ -216,7 +218,7 @@ export const createCoursePurchasePayment = async (
 export const createPackagePurchasePayment = async (
   studentId: string,
   packageId: string,
-  data: { paymentMethod: string; receiptUrl?: string; couponCode?: string; pricingTierId?: string; studentNote?: string }
+  data: { paymentMethod: string; paymentCountry?: string; receiptUrl?: string; couponCode?: string; pricingTierId?: string; studentNote?: string }
 ) => {
   return prisma.$transaction(async (tx) => {
     const coursePackage = await tx.coursePackage.findFirst({
@@ -274,10 +276,7 @@ export const createPackagePurchasePayment = async (
             finalAmount: amount,
             couponCode: data.couponCode || null,
           },
-          paymentDestinationSnapshot: {
-            paymentMethod: data.paymentMethod,
-            ...PAYMENT_CONFIG,
-          },
+          paymentDestinationSnapshot: buildPaymentDestinationSnapshot(data),
         },
       });
       return { payment: updated, reusedPending: true as const };
@@ -367,7 +366,7 @@ export const createPackagePurchasePayment = async (
         paymentMethod: data.paymentMethod,
         receiptUrl: data.receiptUrl,
         studentNote: data.studentNote?.trim() || null,
-        paymentDestinationSnapshot: { paymentMethod: data.paymentMethod, ...PAYMENT_CONFIG },
+        paymentDestinationSnapshot: buildPaymentDestinationSnapshot(data),
         priceSnapshot: {
           packageId,
           packageTitle: coursePackage.title,
