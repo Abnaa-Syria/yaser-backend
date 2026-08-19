@@ -2,7 +2,7 @@ import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
 import { requireCourseAccess } from '../../../utils/subscriptionValidator.js';
 import { generateVdoCipherOtp } from '../../../integrations/vdocipher/vdocipher.client.js';
-import { lessonHasVideo } from '../../shared/lesson-video.js';
+import { lessonHasVideo, resolveVideoEmbedUrl } from '../../shared/lesson-video.js';
 
 export type LessonPlaybackPayload =
   | {
@@ -69,10 +69,11 @@ export const getLessonPlayback = async (
   }
 
   const url = lesson.videoUrl!.trim();
+  const { embedUrl } = resolveVideoEmbedUrl(url);
   return {
     provider: 'url',
     lessonId: lesson.id,
     url,
-    embedUrl: url,
+    embedUrl,
   };
 };

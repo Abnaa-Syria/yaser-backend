@@ -468,7 +468,17 @@ export async function getTrialExamResult(trialSessionId: string, submissionId: s
       answers: {
         include: {
           question: {
-            select: { questionText: true, type: true, points: true, correctAnswer: true, options: true },
+            select: {
+              questionText: true,
+              questionTextAr: true,
+              type: true,
+              points: true,
+              correctAnswer: true,
+              options: true,
+              explanation: true,
+              explanationAr: true,
+              imageUrl: true,
+            },
           },
         },
       },

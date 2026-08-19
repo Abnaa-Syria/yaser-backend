@@ -407,8 +407,22 @@ export const getSubmissionResult = async (studentId, submissionId) => {
         include: {
             exam: { select: { title: true, totalPoints: true, passingScore: true } },
             answers: {
-                include: { question: { select: { questionText: true, type: true, points: true, correctAnswer: true, options: true } } }
-            }
+                include: {
+                    question: {
+                        select: {
+                            questionText: true,
+                            questionTextAr: true,
+                            type: true,
+                            points: true,
+                            correctAnswer: true,
+                            options: true,
+                            explanation: true,
+                            explanationAr: true,
+                            imageUrl: true,
+                        },
+                    },
+                },
+            },
         }
     });
     if (!result)

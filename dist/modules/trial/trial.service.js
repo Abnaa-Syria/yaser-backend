@@ -2,7 +2,7 @@ import { prisma } from '../../prisma.js';
 import { AppError } from '../../utils/AppError.js';
 import { generateToken } from '../../utils/security/jwt.js';
 import { generateVdoCipherOtp } from '../../integrations/vdocipher/vdocipher.client.js';
-import { lessonHasVideo } from '../shared/lesson-video.js';
+import { lessonHasVideo, resolveVideoEmbedUrl } from '../shared/lesson-video.js';
 import { isCourseInActiveTrial, listActiveTrialCourses, loadTrialSettings, } from './trial-settings.js';
 function publicTrialCourseCard(row) {
     const c = row.course;
@@ -323,11 +323,12 @@ export async function getTrialLessonPlayback(lessonId, trialId) {
         };
     }
     const url = lesson.videoUrl.trim();
+    const { embedUrl } = resolveVideoEmbedUrl(url);
     return {
         provider: 'url',
         lessonId: lesson.id,
         url,
-        embedUrl: url,
+        embedUrl,
     };
 }
 export { sessionStatus };
