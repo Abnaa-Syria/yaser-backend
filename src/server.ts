@@ -26,8 +26,9 @@ app.use(
   })
 );
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+// Blog/CMS payloads can include long HTML; file uploads use multer on dedicated routes.
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 app.use('/uploads', apiLimiter, (req, res, next) => {
     // Deny public access to sensitive folders — use authenticated download endpoints.
     if (/^\/?(payment-proofs|payouts)(\/|$)/i.test(req.path)) {

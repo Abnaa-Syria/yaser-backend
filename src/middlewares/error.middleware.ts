@@ -23,12 +23,16 @@ const handleZodError = (err: any) => {
 };
 
 
+const handlePayloadTooLarge = () =>
+  new AppError('Article content is too large. Try shortening the text or using image URLs instead of pasted images.', 413);
+
 export const globalErrorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
   let error = { ...err };
   error.message = err.message;
   error.name = err.name;
   error.statusCode = err.statusCode || 500;
 
+  if (err.type === 'entity.too.large' || err.status === 413) error = handlePayloadTooLarge();
   if (err.name === 'PrismaClientKnownRequestError') error = handlePrismaError(err);
   if (err.name === 'JsonWebTokenError') error = handleJWTError();
   if (err.name === 'TokenExpiredError') error = handleJWTExpiredError();
