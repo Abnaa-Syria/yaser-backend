@@ -51,6 +51,8 @@ const recommendedCourseSelect = {
   type: true,
   price: true,
   isLifetimePurchasable: true,
+  isFeatured: true,
+  displayOrder: true,
   category: {
     select: { id: true, name: true, slug: true },
   },
@@ -74,12 +76,14 @@ type RecommendedCourseRow = {
   type: string;
   price: number;
   isLifetimePurchasable: boolean;
+  isFeatured: boolean;
+  displayOrder: number;
   category: { id: string; name: string; slug: string } | null;
   instructor: { id: string; fullName: string; avatar: string | null } | null;
   _count: { purchases: number };
 };
 
-async function enrichCoursesWithStats(courses: RecommendedCourseRow[]) {
+async function enrichCoursesWithStats(courses: RecommendedCourseRow[], options?: { preferFeaturedBadge?: boolean }) {
   if (!courses.length) return [];
 
   const ids = courses.map((c) => c.id);
@@ -102,6 +106,7 @@ async function enrichCoursesWithStats(courses: RecommendedCourseRow[]) {
 
   const purchaseCounts = courses.map((c) => c._count.purchases).sort((a, b) => b - a);
   const bestsellerThreshold = purchaseCounts[Math.min(2, purchaseCounts.length - 1)] ?? 1;
+  const preferFeaturedBadge = options?.preferFeaturedBadge === true;
 
   return courses.map((course) => {
     const stats = ratingMap.get(course.id);
@@ -114,18 +119,24 @@ async function enrichCoursesWithStats(courses: RecommendedCourseRow[]) {
       type: course.type,
       price: course.price,
       isLifetimePurchasable: course.isLifetimePurchasable,
+      isFeatured: course.isFeatured,
+      displayOrder: course.displayOrder,
       category: course.category,
       instructor: course.instructor,
       purchaseCount,
       rating: stats?.rating ?? null,
       reviewCount: stats?.reviewCount ?? 0,
-      isBestSeller: purchaseCount >= bestsellerThreshold && purchaseCount > 0,
+      isBestSeller: preferFeaturedBadge
+        ? Boolean(course.isFeatured)
+        : purchaseCount >= bestsellerThreshold && purchaseCount > 0,
     };
   });
 }
 
 /**
  * Featured / recommended courses for the public landing page.
+ * Best Sellers tab prefers admin-curated `isFeatured` courses (ordered by `displayOrder`).
+ * Falls back to purchase ranking when none are marked featured.
  */
 export const getRecommendedPublicCourses = async (query: { filter?: string; limit?: string }) => {
   const filter = String(query.filter || 'bestseller').toLowerCase();
@@ -157,13 +168,14 @@ export const getRecommendedPublicCourses = async (query: { filter?: string; limi
   });
 
   const totalCourses = await prisma.course.count({ where: baseWhere });
+  const featuredCount = await prisma.course.count({ where: { ...baseWhere, isFeatured: true } });
 
   const tabs = [
     {
       id: 'bestseller',
       label: 'Best Sellers',
       labelAr: 'أكثر مبيعاً',
-      courseCount: totalCourses,
+      courseCount: featuredCount > 0 ? featuredCount : totalCourses,
     },
     ...categories.map((cat) => ({
       id: cat.slug,
@@ -180,26 +192,39 @@ export const getRecommendedPublicCourses = async (query: { filter?: string; limi
   ];
 
   const where: Record<string, unknown> = { ...baseWhere };
+  let useFeaturedBestseller = false;
 
-  if (filter === 'recorded') {
+  if (filter === 'bestseller') {
+    if (featuredCount > 0) {
+      where.isFeatured = true;
+      useFeaturedBestseller = true;
+    }
+  } else if (filter === 'recorded') {
     where.type = 'RECORDED';
-  } else if (filter !== 'bestseller' && filter !== 'all' && filter !== 'live' && filter !== 'hybrid') {
+  } else if (filter !== 'all' && filter !== 'live' && filter !== 'hybrid') {
     where.category = { slug: filter };
   }
 
   const rows = await prisma.course.findMany({
     where,
     take: Math.max(limit * 4, 32),
-    orderBy: { createdAt: 'desc' },
+    orderBy: useFeaturedBestseller
+      ? [{ displayOrder: 'asc' }, { createdAt: 'desc' }]
+      : { createdAt: 'desc' },
     select: recommendedCourseSelect,
   });
 
-  const sorted =
-    filter === 'bestseller' || filter === 'all'
-      ? [...rows].sort((a, b) => b._count.purchases - a._count.purchases)
-      : [...rows].sort((a, b) => b._count.purchases - a._count.purchases);
+  const sorted = useFeaturedBestseller
+    ? [...rows].sort((a, b) => {
+        const orderDiff = (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
+        if (orderDiff !== 0) return orderDiff;
+        return b._count.purchases - a._count.purchases;
+      })
+    : [...rows].sort((a, b) => b._count.purchases - a._count.purchases);
 
-  const courses = (await enrichCoursesWithStats(sorted)).slice(0, limit);
+  const courses = (
+    await enrichCoursesWithStats(sorted, { preferFeaturedBadge: useFeaturedBestseller })
+  ).slice(0, limit);
 
   return { tabs, courses, filter };
 };
