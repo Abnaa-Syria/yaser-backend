@@ -1,7 +1,22 @@
+import path from 'path';
+import fs from 'fs';
 import * as financialService from './student-financial.service.js';
 import { catchAsync } from '../../../utils/catchAsync.js';
 import { successResponse } from '../../../utils/responseHandler.js';
 import { AppError } from '../../../utils/AppError.js';
+import { PAYMENT_PROOF_UPLOAD_DIR } from '../../../middlewares/paymentProofUpload.middleware.js';
+function proofContentType(filename) {
+    const ext = path.extname(filename).toLowerCase();
+    if (ext === '.png')
+        return 'image/png';
+    if (ext === '.webp')
+        return 'image/webp';
+    if (ext === '.gif')
+        return 'image/gif';
+    if (ext === '.pdf')
+        return 'application/pdf';
+    return 'image/jpeg';
+}
 export const courseCheckout = catchAsync(async (req, res) => {
     const courseId = req.params.courseId;
     const result = await financialService.createCoursePurchasePayment(req.user.id, courseId, req.body);
@@ -29,6 +44,23 @@ export const privateCheckout = catchAsync(async (req, res) => {
 export const getMyPayments = catchAsync(async (req, res) => {
     const result = await financialService.getMyPayments(req.user.id);
     successResponse({ res, data: result, message: 'Payments retrieved successfully' });
+});
+export const downloadMyPaymentProof = catchAsync(async (req, res) => {
+    const payment = await financialService.getMyPaymentById(req.user.id, req.params.id);
+    const receiptUrl = payment?.receiptUrl;
+    if (!receiptUrl ||
+        !receiptUrl.includes('/uploads/payment-proofs/') ||
+        receiptUrl.startsWith('INSTANT_FREE')) {
+        throw new AppError('No payment proof on file', 404);
+    }
+    const filename = path.basename(receiptUrl);
+    const absPath = path.join(PAYMENT_PROOF_UPLOAD_DIR, filename);
+    if (!fs.existsSync(absPath)) {
+        throw new AppError('Payment proof file missing', 404);
+    }
+    res.setHeader('Content-Type', proofContentType(filename));
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.sendFile(absPath);
 });
 export const uploadPaymentProof = catchAsync(async (req, res) => {
     if (!req.file) {

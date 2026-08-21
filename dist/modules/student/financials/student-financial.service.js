@@ -3,6 +3,13 @@ import { AppError } from '../../../utils/AppError.js';
 import { applyCouponDiscount, validateCoupon, maybeRecordCouponForPaymentTx } from '../coupons/student-coupon.service.js';
 import { calculateAccessExpiresAt, durationDaysFromParts } from '../../payments/access-window.js';
 import { PAYMENT_CONFIG } from '../../../config/payment.config.js';
+function buildPaymentDestinationSnapshot(data) {
+    return {
+        paymentMethod: data.paymentMethod,
+        paymentCountry: data.paymentCountry || null,
+        ...PAYMENT_CONFIG,
+    };
+}
 function isPurchaseAccessActive(expiresAt) {
     if (!expiresAt)
         return true;
@@ -31,19 +38,6 @@ export const createCoursePurchasePayment = async (studentId, courseId, data) => 
         if (existingPurchase && isPurchaseAccessActive(existingPurchase.expiresAt)) {
             throw new AppError('You already own this course.', 409);
         }
-        const pendingExisting = await tx.payment.findFirst({
-            where: {
-                studentId,
-                courseId,
-                availabilityId: null,
-                subscriptionId: null,
-                status: 'PENDING',
-            },
-            orderBy: { createdAt: 'desc' },
-        });
-        if (pendingExisting) {
-            return { payment: pendingExisting, reusedPending: true };
-        }
         let basePrice = Number(course.price);
         let pricingTier = null;
         if (data.pricingTierId) {
@@ -56,8 +50,15 @@ export const createCoursePurchasePayment = async (studentId, courseId, data) => 
             basePrice = Number(pricingTier.price);
         }
         else {
+            // Base course.price is buyable when lifetime is enabled, OR when the course
+            // has no active pricing tiers (plain single price, no subscription options).
             if (!course.isLifetimePurchasable) {
-                throw new AppError('This course is not available for individual purchase.', 400);
+                const activeTierCount = await tx.coursePricingTier.count({
+                    where: { courseId, isActive: true },
+                });
+                if (activeTierCount > 0) {
+                    throw new AppError('This course is not available for individual purchase.', 400);
+                }
             }
         }
         if (Number.isNaN(basePrice) || basePrice < 0) {
@@ -70,6 +71,42 @@ export const createCoursePurchasePayment = async (studentId, courseId, data) => 
         }
         if (Number.isNaN(amount) || amount < 0) {
             throw new AppError('Course price is not configured.', 400);
+        }
+        const pendingExisting = await tx.payment.findFirst({
+            where: {
+                studentId,
+                courseId,
+                availabilityId: null,
+                subscriptionId: null,
+                status: 'PENDING',
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        if (pendingExisting) {
+            // Re-submit: refresh proof, method, tier, and amount on the same pending row.
+            if (amount > 0 && !data.receiptUrl) {
+                throw new AppError('Receipt URL is required for paid purchases.', 400);
+            }
+            const updated = await tx.payment.update({
+                where: { id: pendingExisting.id },
+                data: {
+                    paymentMethod: data.paymentMethod || pendingExisting.paymentMethod,
+                    receiptUrl: data.receiptUrl || pendingExisting.receiptUrl,
+                    studentNote: data.studentNote?.trim() || pendingExisting.studentNote,
+                    pricingTierId: data.pricingTierId || null,
+                    amount,
+                    priceSnapshot: {
+                        courseId,
+                        courseTitle: course.title,
+                        pricingTierId: data.pricingTierId || null,
+                        basePrice,
+                        finalAmount: amount,
+                        couponCode: data.couponCode || null,
+                    },
+                    paymentDestinationSnapshot: buildPaymentDestinationSnapshot(data),
+                },
+            });
+            return { payment: updated, reusedPending: true };
         }
         // 1. Free Course: Instant Enrollment
         if (amount === 0) {
@@ -141,10 +178,7 @@ export const createCoursePurchasePayment = async (studentId, courseId, data) => 
                 paymentMethod: data.paymentMethod,
                 receiptUrl: data.receiptUrl,
                 studentNote: data.studentNote?.trim() || null,
-                paymentDestinationSnapshot: {
-                    paymentMethod: data.paymentMethod,
-                    ...PAYMENT_CONFIG,
-                },
+                paymentDestinationSnapshot: buildPaymentDestinationSnapshot(data),
                 priceSnapshot: {
                     courseId,
                     courseTitle: course.title,
@@ -172,16 +206,6 @@ export const createPackagePurchasePayment = async (studentId, packageId, data) =
         if (coursePackage.courses.length === 0) {
             throw new AppError('Package does not contain courses.', 400);
         }
-        const pendingExisting = await tx.payment.findFirst({
-            where: {
-                studentId,
-                coursePackageId: packageId,
-                status: 'PENDING',
-            },
-            orderBy: { createdAt: 'desc' },
-        });
-        if (pendingExisting)
-            return { payment: pendingExisting, reusedPending: true };
         let pricingTier = null;
         let basePrice = Number(coursePackage.price);
         if (data.pricingTierId) {
@@ -196,6 +220,39 @@ export const createPackagePurchasePayment = async (studentId, packageId, data) =
         if (data.couponCode) {
             const coupon = await validateCoupon(studentId, data.couponCode, 'PACKAGE', packageId);
             amount = applyCouponDiscount(basePrice, coupon);
+        }
+        const pendingExisting = await tx.payment.findFirst({
+            where: {
+                studentId,
+                coursePackageId: packageId,
+                status: 'PENDING',
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        if (pendingExisting) {
+            if (amount > 0 && !data.receiptUrl) {
+                throw new AppError('Receipt URL is required for paid purchases.', 400);
+            }
+            const updated = await tx.payment.update({
+                where: { id: pendingExisting.id },
+                data: {
+                    paymentMethod: data.paymentMethod || pendingExisting.paymentMethod,
+                    receiptUrl: data.receiptUrl || pendingExisting.receiptUrl,
+                    studentNote: data.studentNote?.trim() || pendingExisting.studentNote,
+                    coursePackagePricingTierId: data.pricingTierId || null,
+                    amount,
+                    priceSnapshot: {
+                        packageId,
+                        packageTitle: coursePackage.title,
+                        pricingTierId: data.pricingTierId || null,
+                        basePrice,
+                        finalAmount: amount,
+                        couponCode: data.couponCode || null,
+                    },
+                    paymentDestinationSnapshot: buildPaymentDestinationSnapshot(data),
+                },
+            });
+            return { payment: updated, reusedPending: true };
         }
         const accessStartsAt = new Date();
         const expiresAt = pricingTier
@@ -271,7 +328,7 @@ export const createPackagePurchasePayment = async (studentId, packageId, data) =
                 paymentMethod: data.paymentMethod,
                 receiptUrl: data.receiptUrl,
                 studentNote: data.studentNote?.trim() || null,
-                paymentDestinationSnapshot: { paymentMethod: data.paymentMethod, ...PAYMENT_CONFIG },
+                paymentDestinationSnapshot: buildPaymentDestinationSnapshot(data),
                 priceSnapshot: {
                     packageId,
                     packageTitle: coursePackage.title,
@@ -311,7 +368,14 @@ export const createPrivateSessionPayment = async (studentId, availabilityId, dat
             orderBy: { createdAt: 'desc' },
         });
         if (pendingExisting) {
-            return { payment: pendingExisting, reusedPending: true };
+            const updated = await tx.payment.update({
+                where: { id: pendingExisting.id },
+                data: {
+                    paymentMethod: data.paymentMethod || pendingExisting.paymentMethod,
+                    receiptUrl: data.receiptUrl,
+                },
+            });
+            return { payment: updated, reusedPending: true, slot };
         }
         const amount = slot.price > 0 ? slot.price : 0;
         if (amount <= 0) {
@@ -373,6 +437,15 @@ export const getMyPayments = async (studentId) => {
             coursePackagePricingTier: { select: { id: true, name: true, nameAr: true, price: true, durationDays: true } },
         },
     });
+};
+export const getMyPaymentById = async (studentId, paymentId) => {
+    const payment = await prisma.payment.findFirst({
+        where: { id: paymentId, studentId },
+    });
+    if (!payment) {
+        throw new AppError('Payment not found', 404);
+    }
+    return payment;
 };
 /**
  * Get student's purchased courses (my courses).

@@ -5,12 +5,14 @@ import { authLimiter } from '../../middlewares/rateLimit.middleware.js';
 import * as authController from './auth.controller.js';
 import { registerSchema, loginSchema, refreshTokenSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema, resendVerificationSchema, otpRequestSchema, otpVerifySchema, heartbeatSchema, } from './auth.validation.js';
 import * as authSessionController from './auth-session.controller.js';
+import { requestDeviceReplacementSchema } from './device-replacement.service.js';
 const router = Router();
 // ============================================
 // PUBLIC ROUTES
 // ============================================
 router.post('/register', authLimiter, validate(registerSchema), authController.register);
 router.post('/login', authLimiter, validate(loginSchema), authController.login);
+router.post('/device-replacement-request', authLimiter, validate(requestDeviceReplacementSchema), authController.requestDeviceReplacement);
 router.post('/logout', authController.logout); // مش protected عشان الـ token ممكن يكون expired
 router.post('/refresh', validate(refreshTokenSchema), authController.refreshTokens);
 router.post('/forgot-password', authLimiter, validate(forgotPasswordSchema), authController.forgotPassword);

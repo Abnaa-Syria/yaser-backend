@@ -138,6 +138,9 @@ export const getAllEnrollments = async (raw: ListOptions) => {
         amountPaid,
         coursePrice,
         status: statusLabel,
+        expiresAt: p.expiresAt,
+        accessStartsAt: p.accessStartsAt,
+        activatedAt: p.activatedAt,
         student: p.student,
         course: {
           id: p.course.id,

@@ -263,6 +263,8 @@ model User {
   // Device & session security
   devices  UserDevice[]
   sessions UserSession[]
+  deviceReplacementRequests DeviceReplacementRequest[] @relation("DeviceReplacementStudent")
+  deviceReplacementReviews  DeviceReplacementRequest[] @relation("DeviceReplacementReviewer")
 
   // Financial, Attendance & Compliance relations
   couponUsages        CouponUsage[]
@@ -331,6 +333,7 @@ model UserDevice {
 
   // Relations
   sessions UserSession[]
+  replacementRequests DeviceReplacementRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -339,6 +342,36 @@ model UserDevice {
   @@index([studentId])
   @@index([deviceFingerprint])
   @@map("user_devices")
+}
+
+enum DeviceReplacementStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Student asks admin to untrust an existing device and trust a new fingerprint.
+model DeviceReplacementRequest {
+  id              String                   @id @default(uuid())
+  studentId       String
+  student         User                     @relation("DeviceReplacementStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  oldDeviceId     String
+  oldDevice       UserDevice               @relation(fields: [oldDeviceId], references: [id], onDelete: Cascade)
+  newFingerprint  String
+  newDeviceName   String?
+  newOs           String?
+  status          DeviceReplacementStatus  @default(PENDING)
+  reviewedById    String?
+  reviewedBy      User?                    @relation("DeviceReplacementReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt      DateTime?
+  note            String?                  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId, status])
+  @@index([status, createdAt])
+  @@map("device_replacement_requests")
 }
 
 /// Tracks live, concurrent sessions. Only ONE session may be active per student

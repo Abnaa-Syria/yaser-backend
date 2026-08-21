@@ -19,6 +19,7 @@ export async function listFlashcards(query: {
   unitId?: string;
   lessonId?: string;
   status?: PublishStatus;
+  q?: string;
 }) {
   const where: Prisma.FlashcardWhereInput = {};
   if (query.status) where.status = query.status;
@@ -32,6 +33,16 @@ export async function listFlashcards(query: {
         },
       },
     };
+  }
+  const q = query.q?.trim();
+  if (q) {
+    where.OR = [
+      { front: { contains: q } },
+      { back: { contains: q } },
+      { frontAr: { contains: q } },
+      { backAr: { contains: q } },
+      { explanation: { contains: q } },
+    ];
   }
 
   return prisma.flashcard.findMany({

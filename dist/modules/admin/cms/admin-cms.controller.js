@@ -66,6 +66,16 @@ export const deleteFaqItem = catchAsync(async (req, res) => {
     const data = await cmsService.deleteFaqItem(req.params.id);
     successResponse({ res, data, message: 'FAQ item deleted successfully' });
 });
+export const importDefaultFaqs = catchAsync(async (_req, res) => {
+    const data = await cmsService.importDefaultFaqs();
+    successResponse({
+        res,
+        data,
+        message: data.imported > 0
+            ? `Imported ${data.imported} default FAQ item(s)`
+            : 'Default FAQs already present',
+    });
+});
 // --- Reviews ---
 export const getAllReviews = catchAsync(async (req, res) => {
     const data = await cmsService.getAllReviews();

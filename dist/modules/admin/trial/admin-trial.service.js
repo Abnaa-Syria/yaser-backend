@@ -20,9 +20,16 @@ export async function getAdminTrialSettings() {
             },
         },
     });
+    const orphanedIds = courses
+        .filter((row) => !row.course || row.course.deletedAt != null)
+        .map((row) => row.id);
+    if (orphanedIds.length > 0) {
+        await prisma.trialCourse.deleteMany({ where: { id: { in: orphanedIds } } });
+    }
+    const activeRows = courses.filter((row) => row.course && row.course.deletedAt == null);
     return {
         settings,
-        courses: courses.map((row) => ({
+        courses: activeRows.map((row) => ({
             id: row.id,
             courseId: row.courseId,
             displayOrder: row.displayOrder,

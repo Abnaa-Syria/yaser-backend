@@ -1,6 +1,8 @@
 import { prisma } from '../../../prisma.js';
 export const getCourseReviews = async (courseId, page, limit) => {
-    const skip = (page - 1) * limit;
+    const safePage = Math.max(1, Math.floor(Number(page)) || 1);
+    const safeLimit = Math.min(100, Math.max(1, Math.floor(Number(limit)) || 10));
+    const skip = (safePage - 1) * safeLimit;
     const [reviews, total] = await Promise.all([
         prisma.courseReview.findMany({
             where: {
@@ -17,7 +19,7 @@ export const getCourseReviews = async (courseId, page, limit) => {
             },
             orderBy: { createdAt: 'desc' },
             skip,
-            take: limit,
+            take: safeLimit,
         }),
         prisma.courseReview.count({
             where: {
@@ -30,9 +32,9 @@ export const getCourseReviews = async (courseId, page, limit) => {
         reviews,
         pagination: {
             total,
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit),
+            page: safePage,
+            limit: safeLimit,
+            totalPages: Math.ceil(total / safeLimit) || 0,
         },
     };
 };

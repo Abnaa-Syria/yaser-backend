@@ -56,7 +56,20 @@ export const downloadPaymentProof = catchAsync(async (req, res) => {
     if (!fs.existsSync(absPath)) {
         throw new AppError('Payment proof file missing', 404);
     }
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', proofContentType(filename));
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     res.sendFile(absPath);
 });
+function proofContentType(filename) {
+    const ext = path.extname(filename).toLowerCase();
+    if (ext === '.png')
+        return 'image/png';
+    if (ext === '.webp')
+        return 'image/webp';
+    if (ext === '.gif')
+        return 'image/gif';
+    if (ext === '.pdf')
+        return 'application/pdf';
+    return 'image/jpeg';
+}
 //# sourceMappingURL=admin-financial.controller.js.map

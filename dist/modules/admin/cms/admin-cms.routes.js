@@ -15,6 +15,7 @@ router.patch('/hero', validate(heroSchema), adminCmsController.updateHero);
 // --- FAQ Management ---
 router.get('/faq', adminCmsController.getFaqs);
 router.post('/faq', validate(addFaqSchema), adminCmsController.addFaqItem);
+router.post('/faq/import-defaults', adminCmsController.importDefaultFaqs);
 router.patch('/faq/:id', validate(updateFaqSchema), adminCmsController.updateFaqItem);
 router.delete('/faq/:id', adminCmsController.deleteFaqItem);
 // --- Reviews & Social Proof ---

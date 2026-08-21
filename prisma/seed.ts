@@ -676,7 +676,7 @@ async function main() {
       { key: 'SUPPORT_PHONE', value: '+201159007543' },
       { key: 'DEFAULT_CURRENCY', value: 'USD' },
       { key: 'MAINTENANCE_MODE', value: false },
-      { key: 'MAX_TRUSTED_DEVICES', value: 3 },
+      { key: 'MAX_TRUSTED_DEVICES', value: 2 },
       { key: 'LOGO_PRIMARY_URL', value: `${siteOrigin}/assets/brand/logo-primary.svg` },
       { key: 'LOGO_LIGHT_URL', value: `${siteOrigin}/assets/brand/logo-light.svg` },
       { key: 'LOGO_MARK_URL', value: `${siteOrigin}/assets/brand/logo-mark.svg` },

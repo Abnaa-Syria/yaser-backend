@@ -51,6 +51,7 @@ export const globalErrorHandler = (err: any, req: Request, res: Response, next: 
     success: false,
     message: error.message || 'Internal Server Error',
     code: maintenance ? 'MAINTENANCE' : subscriptionQuota ? 'SUBSCRIPTION_QUOTA' : err.code || error.code,
+    details: err.details || error.details,
     maintenance: maintenance || undefined,
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });

@@ -18,8 +18,13 @@ function excerptFromContent(content, maxLen) {
     if (!content || typeof content !== 'object')
         return null;
     const c = content;
-    if (c.format === 'markdown' && typeof c.body === 'string') {
-        const s = c.body.trim().replace(/\s+/g, ' ');
+    const strip = (value) => value
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/[#*_`>]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if ((c.format === 'markdown' || c.format === 'html') && typeof c.body === 'string') {
+        const s = strip(c.body);
         if (!s)
             return null;
         return s.length > maxLen ? `${s.slice(0, maxLen)}…` : s;
@@ -65,9 +70,10 @@ export const getPublicPosts = async (query) => {
         }),
         prisma.post.count({ where }),
     ]);
-    const posts = rows.map(({ content, ...rest }) => ({
+    const posts = rows.map(({ content, contentAr, ...rest }) => ({
         ...rest,
         excerpt: excerptFromContent(content, 200),
+        excerptAr: excerptFromContent(contentAr, 200),
     }));
     return {
         posts,

@@ -6,6 +6,7 @@ export const courseCheckoutSchema = z.object({
     }),
     body: z.object({
         paymentMethod: z.string().min(1, 'Payment method is required'),
+        paymentCountry: z.enum(['EG', 'IQ', 'SY', 'OTHER']).optional(),
         receiptUrl: z.string().optional(),
         couponCode: z.string().trim().min(1).optional(),
         pricingTierId: z.string().uuid().optional(),
@@ -18,6 +19,7 @@ export const packageCheckoutSchema = z.object({
     }),
     body: z.object({
         paymentMethod: z.string().min(1, 'Payment method is required'),
+        paymentCountry: z.enum(['EG', 'IQ', 'SY', 'OTHER']).optional(),
         receiptUrl: z.string().optional(),
         couponCode: z.string().trim().min(1).optional(),
         pricingTierId: z.string().uuid().optional(),
@@ -31,6 +33,11 @@ export const privateCheckoutSchema = z.object({
     body: z.object({
         paymentMethod: z.string().min(1, 'Payment method is required'),
         receiptUrl: requiredMediaUrl,
+    }),
+});
+export const paymentIdParamSchema = z.object({
+    params: z.object({
+        id: z.string().uuid('Invalid payment ID format'),
     }),
 });
 //# sourceMappingURL=student-financial.validation.js.map

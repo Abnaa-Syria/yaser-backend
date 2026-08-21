@@ -1,4 +1,5 @@
 import * as authService from './auth.service.js';
+import * as deviceReplacementService from './device-replacement.service.js';
 import { successResponse } from '../../utils/responseHandler.js';
 import { catchAsync } from '../../utils/catchAsync.js';
 import { AppError } from '../../utils/AppError.js';
@@ -9,6 +10,10 @@ export const register = catchAsync(async (req, res) => {
 export const login = catchAsync(async (req, res) => {
     const result = await authService.loginUser(req.body);
     successResponse({ res, data: result, message: 'Login successful' });
+});
+export const requestDeviceReplacement = catchAsync(async (req, res) => {
+    const result = await deviceReplacementService.requestDeviceReplacement(req.body);
+    successResponse({ res, data: result, message: result.message, statusCode: 201 });
 });
 export const logout = catchAsync(async (req, res) => {
     const { refreshToken } = req.body;

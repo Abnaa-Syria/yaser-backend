@@ -79,6 +79,7 @@ import publicSitemapRoutes from '../modules/public/sitemap/public-sitemap.routes
 import publicPrivateSessionRequestRoutes from '../modules/public/private-session-requests/public-private-session-request.routes.js';
 import adminPrivateSessionRequestRoutes from '../modules/admin/private-session-requests/admin-private-session-request.routes.js';
 import adminTrialRoutes from '../modules/admin/trial/admin-trial.routes.js';
+import adminDeviceReplacementRoutes from '../modules/admin/device-replacements/admin-device-replacement.routes.js';
 import { publicTrialRouter, trialRouter } from '../modules/trial/trial.routes.js';
 import mediaRoutes from '../modules/media/media.routes.js';
 import { maintenanceGuard } from '../middlewares/maintenance.middleware.js';
@@ -151,6 +152,7 @@ apiRouter.use('/admin/settings', adminSettingsRoutes);
 apiRouter.use('/admin/gamification', adminGamificationRoutes);
 apiRouter.use('/admin/instructor-reviews', adminInstructorReviewRoutes);
 apiRouter.use('/admin/trial', adminTrialRoutes);
+apiRouter.use('/admin/device-replacements', adminDeviceReplacementRoutes);
 apiRouter.use('/admin/roles', adminRoleRoutes);
 apiRouter.use('/admin/audit-logs', adminAuditLogRoutes);
 apiRouter.use('/admin/subscriptions', adminSubscriptionRoutes);

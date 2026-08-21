@@ -16,6 +16,16 @@ export async function listFlashcards(query) {
             },
         };
     }
+    const q = query.q?.trim();
+    if (q) {
+        where.OR = [
+            { front: { contains: q } },
+            { back: { contains: q } },
+            { frontAr: { contains: q } },
+            { backAr: { contains: q } },
+            { explanation: { contains: q } },
+        ];
+    }
     return prisma.flashcard.findMany({
         where,
         orderBy: [{ lessonId: 'asc' }, { displayOrder: 'asc' }, { createdAt: 'asc' }],

@@ -1,6 +1,7 @@
 import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
 import { previewTemplate, sendMail } from '../../../utils/mail.js';
+import { clearMaintenanceModeCache } from '../../../services/maintenance.service.js';
 function toJsonValue(value) {
     if (value === null || value === undefined)
         return '';
@@ -26,7 +27,11 @@ export const updateSettings = async (settings) => {
         update: { value: toJsonValue(value) },
         create: { key, value: toJsonValue(value) },
     }));
-    return await prisma.$transaction(updates);
+    const result = await prisma.$transaction(updates);
+    if (Object.prototype.hasOwnProperty.call(settings, 'MAINTENANCE_MODE')) {
+        clearMaintenanceModeCache();
+    }
+    return result;
 };
 // --- Email Templates ---
 export const getAllEmailTemplates = async () => {

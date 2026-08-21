@@ -26,6 +26,7 @@ export const listFlashcardsSchema = z.object({
         unitId: z.string().uuid().optional(),
         lessonId: z.string().uuid().optional(),
         status: statusSchema.optional(),
+        q: z.string().max(200).optional(),
     }),
 });
 //# sourceMappingURL=admin-flashcard.validation.js.map

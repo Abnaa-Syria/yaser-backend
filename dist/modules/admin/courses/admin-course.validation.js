@@ -29,6 +29,8 @@ export const createCourseSchema = z.object({
         type: z.enum(['RECORDED']).optional(),
         isActive: z.boolean().optional(),
         targetLevels: z.array(z.string()).optional().nullable(),
+        includesEn: z.array(z.string()).optional().nullable(),
+        includesAr: z.array(z.string()).optional().nullable(),
         pricingTiers: z.array(z.object({
             name: z.string().min(1),
             nameAr: z.string().min(1),
@@ -49,7 +51,8 @@ export const updateCourseSchema = z.object({
         descriptionAr: z.string().optional().nullable(),
         shortDescription: z.string().max(500).optional().nullable(),
         shortDescriptionAr: z.string().max(500).optional().nullable(),
-        thumbnail: optionalMediaUrl,
+        thumbnail: optionalNullableMediaUrl,
+        coverImage: optionalNullableMediaUrl,
         introVideoUrl: optionalNullableMediaUrl,
         instructorId: optionalNullableUuid,
         categoryId: optionalNullableUuid,
@@ -58,6 +61,8 @@ export const updateCourseSchema = z.object({
         type: z.enum(['RECORDED']).optional(),
         isActive: z.boolean().optional(),
         targetLevels: z.array(z.string()).optional().nullable(),
+        includesEn: z.array(z.string()).optional().nullable(),
+        includesAr: z.array(z.string()).optional().nullable(),
         pricingTiers: z.array(z.object({
             id: z.string().uuid().optional(),
             name: z.string().min(1),

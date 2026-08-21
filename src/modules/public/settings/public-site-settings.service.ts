@@ -1,6 +1,11 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../../prisma.js';
 import { APP_BRAND } from '../../../config/brand.config.js';
+import {
+  DEFAULT_PUBLIC_PAGE_VISIBILITY,
+  normalizePageVisibility,
+  PUBLIC_PAGE_VISIBILITY_KEY,
+} from '../../../config/publicPageVisibility.js';
 
 /** Keys exposed to the marketing site (Header/Footer). */
 const PUBLIC_SETTING_KEYS = [
@@ -20,6 +25,7 @@ const PUBLIC_SETTING_KEYS = [
   'FOOTER_LOCATION_EN',
   'FOOTER_LOCATION_AR',
   'MAINTENANCE_MODE',
+  PUBLIC_PAGE_VISIBILITY_KEY,
 ] as const;
 
 function jsonToString(v: Prisma.JsonValue | null | undefined): string {
@@ -44,15 +50,31 @@ export async function getPublicSiteSettings() {
 
   const map: Record<string, string> = {};
   let maintenanceMode = false;
+  let pageVisibilityRaw: unknown = null;
   for (const r of rows) {
     if (r.key === 'MAINTENANCE_MODE') {
       maintenanceMode = jsonToBool(r.value);
       continue;
     }
+    if (r.key === PUBLIC_PAGE_VISIBILITY_KEY) {
+      pageVisibilityRaw = r.value;
+      continue;
+    }
     map[r.key] = jsonToString(r.value);
   }
 
+  if (pageVisibilityRaw == null) {
+    void prisma.platformSetting
+      .upsert({
+        where: { key: PUBLIC_PAGE_VISIBILITY_KEY },
+        update: {},
+        create: { key: PUBLIC_PAGE_VISIBILITY_KEY, value: DEFAULT_PUBLIC_PAGE_VISIBILITY },
+      })
+      .catch(() => undefined);
+  }
+
   const phone = map.PHONE_NUMBER || map.SUPPORT_PHONE || '';
+  const pageVisibility = normalizePageVisibility(pageVisibilityRaw);
 
   return {
     siteName: map.SITE_NAME || APP_BRAND.name,
@@ -66,6 +88,7 @@ export async function getPublicSiteSettings() {
     footerLocationEn: map.FOOTER_LOCATION_EN || '',
     footerLocationAr: map.FOOTER_LOCATION_AR || '',
     maintenanceMode,
+    pageVisibility,
     social: {
       facebook: map.SOCIAL_FACEBOOK_URL || '',
       twitter: map.SOCIAL_TWITTER_URL || '',

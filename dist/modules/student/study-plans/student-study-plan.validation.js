@@ -18,7 +18,10 @@ export const createStudyPlanSchema = z.object({
 });
 export const updateStudyPlanSchema = z.object({
     params: z.object({ id: z.string().uuid() }),
-    body: createStudyPlanSchema.shape.body.partial().extend({
+    body: z.object({
+        title: z.string().min(1).max(200).optional(),
+        goal: z.string().max(2000).optional().nullable(),
+        targetDate: z.coerce.date().optional().nullable(),
         isArchived: z.boolean().optional(),
     }),
 });

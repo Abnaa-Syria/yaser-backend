@@ -16,8 +16,12 @@ const cmsSectionSchema = z.object({
 });
 const postContentSchema = z.union([
     z.object({
+        format: z.literal('html'),
+        body: z.string().max(200000),
+    }),
+    z.object({
         format: z.literal('markdown'),
-        body: z.string().max(100000),
+        body: z.string().max(200000),
     }),
     z.object({
         bullets: z.array(z.object({
