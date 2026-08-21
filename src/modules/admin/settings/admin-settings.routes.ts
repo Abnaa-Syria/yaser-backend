@@ -3,6 +3,7 @@ import { protect } from '../../../middlewares/auth.middleware.js';
 import { requirePermission } from '../../../middlewares/permission.middleware.js';
 import { validate } from '../../../middlewares/validate.middleware.js';
 import { brandingLogoUpload } from '../../../middlewares/brandingLogoUpload.middleware.js';
+import { paymentMethodAssetUpload } from '../../../middlewares/paymentMethodAssetUpload.middleware.js';
 import * as adminSettingsController from './admin-settings.controller.js';
 import * as adminSettingsValidation from './admin-settings.validation.js';
 
@@ -14,6 +15,11 @@ router.use(requirePermission('settings:manage'));
 router.get('/', adminSettingsController.getSettings);
 router.patch('/', validate(adminSettingsValidation.updateSettingsSchema), adminSettingsController.updateSettings);
 router.post('/logo', brandingLogoUpload.single('logo'), adminSettingsController.uploadLogo);
+router.post(
+  '/payment-method-asset',
+  paymentMethodAssetUpload.single('asset'),
+  adminSettingsController.uploadPaymentMethodAsset
+);
 
 router.get('/emails', adminSettingsController.getEmailTemplates);
 router.post('/emails', validate(adminSettingsValidation.createEmailTemplateSchema), adminSettingsController.createEmailTemplate);

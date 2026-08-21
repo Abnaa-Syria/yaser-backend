@@ -9,7 +9,7 @@ function toJsonValue(value: unknown): Prisma.InputJsonValue {
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return value;
   }
-  if (typeof value === 'object' && !Array.isArray(value)) {
+  if (typeof value === 'object') {
     return value as Prisma.InputJsonValue;
   }
   return String(value);

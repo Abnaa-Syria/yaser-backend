@@ -27,6 +27,18 @@ export const uploadLogo = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+export const uploadPaymentMethodAsset = catchAsync(async (req: Request, res: Response) => {
+  if (!req.file) {
+    throw new AppError('An image is required', 400);
+  }
+  successResponse({
+    res,
+    data: { url: `/uploads/payment-methods/${req.file.filename}` },
+    message: 'Payment method asset uploaded successfully',
+    statusCode: 201,
+  });
+});
+
 // --- Emails ---
 export const getEmailTemplates = catchAsync(async (req: Request, res: Response) => {
   const data = await settingsService.getAllEmailTemplates();

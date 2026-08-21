@@ -11,8 +11,11 @@ import { corsOptions } from './config/cors.config.js';
 import { APP_BRAND } from './config/brand.config.js';
 // Notice: Rate limiters and specific router middleware should be attached in routes/index.ts where applicable.
 import { apiLimiter } from './middlewares/rateLimit.middleware.js';
+import { ensureDefaultPaymentMethodAssets } from './utils/ensurePaymentMethodAssets.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+ensureDefaultPaymentMethodAssets();
 
 const app: Application = express();
 app.set('trust proxy', 1); // Trust first proxy (e.g. Nginx, Cloudflare)
