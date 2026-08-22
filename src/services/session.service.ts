@@ -59,6 +59,19 @@ export const createUserSession = async (ctx: SessionContext): Promise<string> =>
       },
     });
     if (isStudent && !device.isTrusted) {
+      const maxTrusted = await getMaxTrustedDevices();
+      const trustedDevices = await prisma.userDevice.findMany({
+        where: { studentId: ctx.userId, isTrusted: true },
+        orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true,
+          deviceName: true,
+          os: true,
+          deviceFingerprint: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
       const pending = await prisma.deviceReplacementRequest.findFirst({
         where: {
           studentId: ctx.userId,
@@ -73,8 +86,18 @@ export const createUserSession = async (ctx: SessionContext): Promise<string> =>
         {
           code: 'DEVICE_NOT_TRUSTED',
           details: {
+            maxTrustedDevices: maxTrusted,
+            devices: trustedDevices.map((d) => ({
+              id: d.id,
+              deviceName: d.deviceName,
+              os: d.os,
+              fingerprintShort: d.deviceFingerprint.slice(0, 10),
+              lastSeenAt: d.updatedAt,
+              createdAt: d.createdAt,
+            })),
             pendingRequestId: pending?.id || null,
             pendingStatus: pending?.status || null,
+            newFingerprint: fingerprint,
           },
         }
       );

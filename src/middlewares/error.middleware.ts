@@ -31,6 +31,8 @@ export const globalErrorHandler = (err: any, req: Request, res: Response, next: 
   error.message = err.message;
   error.name = err.name;
   error.statusCode = err.statusCode || 500;
+  error.code = err.code || error.code;
+  error.details = err.details ?? error.details;
 
   if (err.type === 'entity.too.large' || err.status === 413) error = handlePayloadTooLarge();
   if (err.name === 'PrismaClientKnownRequestError') error = handlePrismaError(err);
@@ -50,11 +52,11 @@ export const globalErrorHandler = (err: any, req: Request, res: Response, next: 
   res.status(error.statusCode).json({
     success: false,
     message: error.message || 'Internal Server Error',
-    code: maintenance ? 'MAINTENANCE' : subscriptionQuota ? 'SUBSCRIPTION_QUOTA' : err.code || error.code,
-    details: err.details || error.details,
+    code: maintenance ? 'MAINTENANCE' : subscriptionQuota ? 'SUBSCRIPTION_QUOTA' : error.code || err.code,
+    details: error.details ?? err.details,
     maintenance: maintenance || undefined,
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });
-  console.log("error is :",error);
-  console.log("error is :",error.message);
+  console.log('error is :', error);
+  console.log('error is :', error.message);
 };
