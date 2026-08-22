@@ -46,8 +46,8 @@ export const listUsersSchema = z.object({
       .optional(),
     isActive: z.enum(['true', 'false']).optional(),
     search: z.string().optional(),
-    page: z.string().regex(/^\d+$/).optional(),
-    limit: z.string().regex(/^\d+$/).optional(),
+    page: z.coerce.number().int().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(500).optional(),
   }),
 });
 

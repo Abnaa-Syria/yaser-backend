@@ -11,19 +11,25 @@ import { allocateUniqueUsername, usernameFromIdentity } from '../../../utils/use
  * Get all platform users with filtering and pagination
  */
 export const getAllUsers = async (query: any) => {
-  const { role, isActive, search, page = 1, limit = 10 } = query;
-  const skip = (Number(page) - 1) * Number(limit);
+  const { role, isActive, search } = query;
+  const page = Math.max(1, Number(query.page) || 1);
+  const limit = Math.min(500, Math.max(1, Number(query.limit) || 10));
+  const skip = (page - 1) * limit;
   const isStudentList = role === 'STUDENT';
 
   const where: any = notDeleted();
   if (role) Object.assign(where, userHasRoleName(role));
-  if (isActive !== undefined) where.isActive = isActive === 'true';
+  if (isActive !== undefined) where.isActive = isActive === 'true' || isActive === true;
   if (search) {
-    where.OR = [
-      { fullName: { contains: search } },
-      { email: { contains: search } },
-      { username: { contains: search } },
-    ];
+    const q = String(search).trim();
+    if (q) {
+      where.OR = [
+        { fullName: { contains: q } },
+        { email: { contains: q } },
+        { username: { contains: q } },
+        { phone: { contains: q } },
+      ];
+    }
   }
 
   const baseSelect: Record<string, boolean | object> = {
@@ -57,7 +63,7 @@ export const getAllUsers = async (query: any) => {
     prisma.user.findMany({
       where,
       skip,
-      take: Number(limit),
+      take: limit,
       orderBy: { createdAt: 'desc' },
       select: (isStudentList ? studentSelect : baseSelect) as any,
     }),
@@ -110,9 +116,9 @@ export const getAllUsers = async (query: any) => {
     users,
     pagination: {
       total,
-      page: Number(page),
-      limit: Number(limit),
-      totalPages: Math.ceil(total / Number(limit)),
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
     },
     studentListStats,
   };
