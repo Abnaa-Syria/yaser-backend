@@ -331,13 +331,26 @@ export const updateEnrollmentExpiry = async (id: string, expiresAt: string | nul
   const existing = await prisma.coursePurchase.findUnique({ where: { id } });
   if (!existing) throw new AppError('Enrollment not found.', 404);
 
-  const updated = await prisma.coursePurchase.update({
-    where: { id },
-    data: { expiresAt: expiresAt ? new Date(expiresAt) : null },
-    include: {
-      course: { select: { id: true, title: true } },
-      student: { select: { id: true, fullName: true, email: true } },
-    },
+  const expiryDate = expiresAt ? new Date(expiresAt) : null;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const purchase = await tx.coursePurchase.update({
+      where: { id },
+      data: { expiresAt: expiryDate },
+      include: {
+        course: { select: { id: true, title: true } },
+        student: { select: { id: true, fullName: true, email: true } },
+      },
+    });
+
+    if (existing.paymentId) {
+      await tx.payment.update({
+        where: { id: existing.paymentId },
+        data: { accessExpiresAt: expiryDate },
+      });
+    }
+
+    return purchase;
   });
 
   return updated;

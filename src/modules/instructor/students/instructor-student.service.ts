@@ -166,6 +166,8 @@ export const getStudentPerformanceForInstructor = async (instructorId: string, s
     courseId: e.courseId,
     progressPercentage: e.progressPercentage,
     isCompleted: e.isCompleted,
+    expiresAt: e.expiresAt,
+    purchasedAt: e.purchasedAt,
     course: e.course,
   }));
 

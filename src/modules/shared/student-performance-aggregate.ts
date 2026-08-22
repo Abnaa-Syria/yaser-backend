@@ -7,6 +7,8 @@ export type PerformanceEnrollmentRow = {
   courseId: string;
   progressPercentage: number | null;
   isCompleted: boolean;
+  expiresAt?: Date | null;
+  purchasedAt?: Date;
   course: {
     id: string;
     title: string;
@@ -55,6 +57,8 @@ export type StudentPerformanceBundle = {
       courseType: string;
       progressPercentage: number;
       isCompleted: boolean;
+      expiresAt: string | null;
+      purchasedAt: string | null;
     }>;
   };
   exams: {
@@ -151,6 +155,8 @@ export function buildStudentPerformanceBundle({
       courseType: e.course.type,
       progressPercentage: Math.round((e.progressPercentage ?? 0) * 10) / 10,
       isCompleted: e.isCompleted,
+      expiresAt: e.expiresAt ? e.expiresAt.toISOString() : null,
+      purchasedAt: e.purchasedAt ? e.purchasedAt.toISOString() : null,
     })),
   };
 
