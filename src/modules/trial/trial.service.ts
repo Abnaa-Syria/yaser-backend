@@ -361,12 +361,22 @@ export async function getTrialLessonPlayback(lessonId: string, trialId: string) 
   }
 
   const url = lesson.videoUrl!.trim();
-  const { embedUrl } = resolveVideoEmbedUrl(url);
+  const resolved = resolveVideoEmbedUrl(url);
+  if (resolved.provider === 'youtube' && resolved.videoId) {
+    return {
+      provider: 'youtube' as const,
+      lessonId: lesson.id,
+      videoId: resolved.videoId,
+      embedUrl: resolved.embedUrl,
+      posterUrl: resolved.posterUrl || `https://i.ytimg.com/vi/${resolved.videoId}/hqdefault.jpg`,
+      url,
+    };
+  }
   return {
     provider: 'url' as const,
     lessonId: lesson.id,
     url,
-    embedUrl,
+    embedUrl: resolved.embedUrl,
   };
 }
 

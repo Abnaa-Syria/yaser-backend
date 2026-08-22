@@ -13,6 +13,14 @@ export type LessonPlaybackPayload =
       embedUrl: string;
     }
   | {
+      provider: 'youtube';
+      lessonId: string;
+      videoId: string;
+      embedUrl: string;
+      posterUrl: string;
+      url: string;
+    }
+  | {
       provider: 'url';
       lessonId: string;
       url: string;
@@ -69,11 +77,21 @@ export const getLessonPlayback = async (
   }
 
   const url = lesson.videoUrl!.trim();
-  const { embedUrl } = resolveVideoEmbedUrl(url);
+  const resolved = resolveVideoEmbedUrl(url);
+  if (resolved.provider === 'youtube' && resolved.videoId) {
+    return {
+      provider: 'youtube',
+      lessonId: lesson.id,
+      videoId: resolved.videoId,
+      embedUrl: resolved.embedUrl,
+      posterUrl: resolved.posterUrl || `https://i.ytimg.com/vi/${resolved.videoId}/hqdefault.jpg`,
+      url,
+    };
+  }
   return {
     provider: 'url',
     lessonId: lesson.id,
     url,
-    embedUrl,
+    embedUrl: resolved.embedUrl,
   };
 };
