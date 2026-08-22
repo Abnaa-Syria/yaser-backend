@@ -1,7 +1,7 @@
 import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
 import { userHasRoleName } from '../../../utils/role-query.js';
-import { notDeleted, softDeleteData } from '../../../utils/soft-delete.js';
+import { notDeleted, softDeleteUserIdentityData } from '../../../utils/soft-delete.js';
 import { logAudit } from '../../../services/audit-logger.service.js';
 import { deactivateAllUserSessions } from '../../../services/session.service.js';
 import { hashPassword } from '../../../utils/security/hash.js';
@@ -138,7 +138,13 @@ export const createStaffUser = async (data: {
   const email = data.email.trim().toLowerCase();
 
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) throw new AppError('Email is already in use.', 409);
+  if (existing && !existing.deletedAt) throw new AppError('Email is already in use.', 409);
+  if (existing?.deletedAt) {
+    await prisma.user.update({
+      where: { id: existing.id },
+      data: softDeleteUserIdentityData(existing),
+    });
+  }
 
   const role = await prisma.role.findUnique({ where: { id: data.roleId } });
   if (!role) throw new AppError('Role not found.', 404);
@@ -273,14 +279,19 @@ export const setUserPasswordByAdmin = async (id: string, newPassword: string, ac
 export const deleteUser = async (id: string, actorId: string) => {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) throw new AppError('User not found.', 404);
+  if (user.deletedAt) throw new AppError('User already deleted.', 404);
 
-  await prisma.user.update({ where: { id }, data: softDeleteData() });
+  await prisma.user.update({
+    where: { id },
+    data: softDeleteUserIdentityData(user),
+  });
   await deactivateAllUserSessions(id);
   await logAudit({
     userId: actorId,
     action: 'USER_SOFT_DELETED',
     entityType: 'USER',
     entityId: id,
+    details: { previousEmail: user.email },
   });
   return { id, deleted: true };
 };

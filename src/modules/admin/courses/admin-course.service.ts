@@ -50,6 +50,10 @@ export const createCourse = async (data: any, actorId?: string) => {
       isActive,
       isFeatured: data.isFeatured === true,
       displayOrder: typeof data.displayOrder === 'number' ? data.displayOrder : 0,
+      useDisplayEnrollmentCount:
+        data.useDisplayEnrollmentCount !== undefined ? data.useDisplayEnrollmentCount === true : true,
+      displayEnrollmentCount:
+        typeof data.displayEnrollmentCount === 'number' ? data.displayEnrollmentCount : 2106,
       publishStatus: isActive ? PublishStatus.PUBLISHED : PublishStatus.DRAFT,
       status: isActive ? ContentStatus.APPROVED : ContentStatus.DRAFT,
       includesEn: includesEn !== undefined ? (includesEn as any) : undefined,
@@ -121,6 +125,8 @@ export const updateCourse = async (id: string, data: any, actorId?: string) => {
         instructorId: data.instructorId,
         isFeatured: data.isFeatured,
         displayOrder: data.displayOrder,
+        useDisplayEnrollmentCount: data.useDisplayEnrollmentCount,
+        displayEnrollmentCount: data.displayEnrollmentCount,
         targetLevels: data.targetLevels !== undefined ? (data.targetLevels as any) : undefined,
         ...(includesEn !== undefined ? { includesEn: includesEn as any } : {}),
         ...(includesAr !== undefined ? { includesAr: includesAr as any } : {}),

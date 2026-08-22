@@ -524,6 +524,10 @@ model Course {
   isActive           Boolean       @default(true)
   isFeatured         Boolean       @default(false)
   displayOrder       Int           @default(0)
+  /// When true, public pages show `displayEnrollmentCount` instead of the real purchase count.
+  useDisplayEnrollmentCount Boolean @default(true)
+  /// Marketing / display enrollment number shown on public course pages when override is on.
+  displayEnrollmentCount    Int     @default(2106)
   publishStatus      PublishStatus @default(DRAFT)
   seoTitle           String?
   seoTitleAr         String?

@@ -8,6 +8,7 @@ import { createUserSession, deactivateAllUserSessions } from '../../services/ses
 import { RegisterInput, LoginInput } from './auth.validation.js';
 import { sendTemplatedEmail } from '../../utils/mail.js';
 import { allocateUniqueUsername, usernameFromIdentity, normalizeUsername } from '../../utils/username.js';
+import { softDeleteUserIdentityData } from '../../utils/soft-delete.js';
 
 const REFRESH_TOKEN_EXPIRES_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -51,8 +52,15 @@ export const registerUser = async (data: RegisterInput) => {
   const email = data.email.trim().toLowerCase();
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) {
+  if (existingUser && !existingUser.deletedAt) {
     throw new AppError('Email is already in use.', 409);
+  }
+  // Soft-deleted accounts still occupy unique email until identity is released.
+  if (existingUser?.deletedAt) {
+    await prisma.user.update({
+      where: { id: existingUser.id },
+      data: softDeleteUserIdentityData(existingUser),
+    });
   }
 
   const hashedPassword = await hashPassword(data.password);

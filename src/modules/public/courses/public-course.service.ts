@@ -2,6 +2,7 @@ import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
 import { notDeleted } from '../../../utils/soft-delete.js';
 import { PAYMENT_CONFIG } from '../../../config/payment.config.js';
+import { resolvePublicEnrollmentCount } from '../../../utils/public-enrollment-count.js';
 
 const publicCurriculumSelect = {
   units: {
@@ -53,6 +54,8 @@ const recommendedCourseSelect = {
   isLifetimePurchasable: true,
   isFeatured: true,
   displayOrder: true,
+  useDisplayEnrollmentCount: true,
+  displayEnrollmentCount: true,
   category: {
     select: { id: true, name: true, slug: true },
   },
@@ -78,6 +81,8 @@ type RecommendedCourseRow = {
   isLifetimePurchasable: boolean;
   isFeatured: boolean;
   displayOrder: number;
+  useDisplayEnrollmentCount: boolean;
+  displayEnrollmentCount: number;
   category: { id: string; name: string; slug: string } | null;
   instructor: { id: string; fullName: string; avatar: string | null } | null;
   _count: { purchases: number };
@@ -110,7 +115,8 @@ async function enrichCoursesWithStats(courses: RecommendedCourseRow[], options?:
 
   return courses.map((course) => {
     const stats = ratingMap.get(course.id);
-    const purchaseCount = course._count.purchases;
+    const realPurchaseCount = course._count.purchases;
+    const purchaseCount = resolvePublicEnrollmentCount(course);
     return {
       id: course.id,
       title: course.title,
@@ -121,6 +127,8 @@ async function enrichCoursesWithStats(courses: RecommendedCourseRow[], options?:
       isLifetimePurchasable: course.isLifetimePurchasable,
       isFeatured: course.isFeatured,
       displayOrder: course.displayOrder,
+      useDisplayEnrollmentCount: course.useDisplayEnrollmentCount,
+      displayEnrollmentCount: course.displayEnrollmentCount,
       category: course.category,
       instructor: course.instructor,
       purchaseCount,
@@ -128,7 +136,7 @@ async function enrichCoursesWithStats(courses: RecommendedCourseRow[], options?:
       reviewCount: stats?.reviewCount ?? 0,
       isBestSeller: preferFeaturedBadge
         ? Boolean(course.isFeatured)
-        : purchaseCount >= bestsellerThreshold && purchaseCount > 0,
+        : realPurchaseCount >= bestsellerThreshold && realPurchaseCount > 0,
     };
   });
 }
@@ -280,6 +288,8 @@ export const getPublicCourses = async (query: any) => {
         price: true,
         isFeatured: true,
         isLifetimePurchasable: true,
+        useDisplayEnrollmentCount: true,
+        displayEnrollmentCount: true,
         category: {
           select: { id: true, name: true, nameAr: true, slug: true, icon: true },
         },
@@ -349,6 +359,8 @@ export const getPublicCourseById = async (id: string) => {
       price: true,
         isFeatured: true,
       isLifetimePurchasable: true,
+      useDisplayEnrollmentCount: true,
+      displayEnrollmentCount: true,
       includesEn: true,
       includesAr: true,
       category: {
