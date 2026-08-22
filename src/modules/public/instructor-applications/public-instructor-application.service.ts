@@ -1,4 +1,5 @@
 import { prisma } from '../../../prisma.js';
+import { detailRows, notifyAdmins } from '../../notifications/admin-alert.service.js';
 
 type InstructorApplicationInput = {
   name: string;
@@ -11,7 +12,7 @@ type InstructorApplicationInput = {
 };
 
 export async function submitInstructorApplication(data: InstructorApplicationInput) {
-  return prisma.instructorApplication.create({
+  const application = await prisma.instructorApplication.create({
     data: {
       name: data.name.trim(),
       email: data.email.trim().toLowerCase(),
@@ -26,6 +27,32 @@ export async function submitInstructorApplication(data: InstructorApplicationInp
       id: true,
       status: true,
       createdAt: true,
+      name: true,
+      email: true,
+      phone: true,
+      specialty: true,
     },
   });
+
+  void notifyAdmins({
+    title: 'New instructor application',
+    message: `${application.name} applied to become an instructor.`,
+    emailSubject: 'New instructor application',
+    emailDetailsHtml: detailRows([
+      ['Name', application.name],
+      ['Email', application.email],
+      ['Phone', application.phone],
+      ['Specialty', application.specialty],
+    ]),
+    ctaPath: '/admin/instructors',
+    ctaLabel: 'Review applications',
+    entityId: application.id,
+    entityType: 'InstructorApplication',
+  });
+
+  return {
+    id: application.id,
+    status: application.status,
+    createdAt: application.createdAt,
+  };
 }

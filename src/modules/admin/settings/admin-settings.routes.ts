@@ -35,5 +35,10 @@ router.post(
   validate(adminSettingsValidation.sendTestEmailTemplateSchema),
   adminSettingsController.sendTestEmailTemplate
 );
+router.post(
+  '/emails/send-broadcast',
+  validate(adminSettingsValidation.sendBroadcastEmailSchema),
+  adminSettingsController.sendBroadcastEmail
+);
 
 export default router;

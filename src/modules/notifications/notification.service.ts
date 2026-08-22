@@ -6,7 +6,8 @@ export const createNotification = async (
   title: string,
   message: string,
   type: NotificationType = 'GENERAL',
-  txClient?: any // Accepts a transaction client to participate in atomicity
+  txClient?: any,
+  meta?: { entityId?: string; entityType?: string }
 ) => {
   const db = txClient || prisma;
   return await db.notification.create({
@@ -15,6 +16,8 @@ export const createNotification = async (
       title,
       message,
       type,
+      entityId: meta?.entityId || null,
+      entityType: meta?.entityType || null,
     },
   });
 };
@@ -22,7 +25,8 @@ export const createNotification = async (
 export const getUserNotifications = async (userId: string) => {
   return await prisma.notification.findMany({
     where: { userId },
-    orderBy: { id: 'desc' }, // Using ID for ordering as a fallback, but normally createdAt is best
+    orderBy: { createdAt: 'desc' },
+    take: 50,
   });
 };
 

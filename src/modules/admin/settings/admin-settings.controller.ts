@@ -80,3 +80,12 @@ export const sendTestEmailTemplate = catchAsync(async (req: Request, res: Respon
   });
   successResponse({ res, data, message: 'Test email sent successfully' });
 });
+
+export const sendBroadcastEmail = catchAsync(async (req: Request, res: Response) => {
+  const data = await settingsService.sendBroadcastEmail(req.body);
+  successResponse({
+    res,
+    data,
+    message: `Email sent to ${data.sent} of ${data.recipientCount} recipients`,
+  });
+});

@@ -3,6 +3,7 @@ import { AppError } from '../../../utils/AppError.js';
 import { applyCouponDiscount, validateCoupon, maybeRecordCouponForPaymentTx } from '../coupons/student-coupon.service.js';
 import { calculateAccessExpiresAt, durationDaysFromParts } from '../../payments/access-window.js';
 import { PAYMENT_CONFIG } from '../../../config/payment.config.js';
+import { notifyPurchaseActivity } from './purchase-alerts.js';
 
 function buildPaymentDestinationSnapshot(data: { paymentMethod: string; paymentCountry?: string }) {
   return {
@@ -26,7 +27,8 @@ export const createCoursePurchasePayment = async (
   courseId: string,
   data: { paymentMethod: string; paymentCountry?: string; receiptUrl?: string; couponCode?: string; pricingTierId?: string; studentNote?: string }
 ) => {
-  return prisma.$transaction(async (tx) => {
+  let courseTitle = 'Course';
+  const result = await prisma.$transaction(async (tx) => {
     const course = await tx.course.findFirst({
       where: { id: courseId, deletedAt: null, isActive: true },
       select: {
@@ -38,6 +40,7 @@ export const createCoursePurchasePayment = async (
     });
 
     if (!course) throw new AppError('Course not found.', 404);
+    courseTitle = course.title;
 
     const existingPurchase = await tx.coursePurchase.findUnique({
       where: { studentId_courseId: { studentId, courseId } },
@@ -213,6 +216,17 @@ export const createCoursePurchasePayment = async (
 
     return { payment, reusedPending: false, enrolledInstantly: false };
   });
+
+  void notifyPurchaseActivity({
+    studentId,
+    payment: result.payment,
+    productKind: 'course',
+    productTitle: courseTitle,
+    reusedPending: Boolean(result.reusedPending),
+    enrolledInstantly: Boolean((result as { enrolledInstantly?: boolean }).enrolledInstantly),
+  });
+
+  return result;
 };
 
 export const createPackagePurchasePayment = async (
@@ -220,7 +234,8 @@ export const createPackagePurchasePayment = async (
   packageId: string,
   data: { paymentMethod: string; paymentCountry?: string; receiptUrl?: string; couponCode?: string; pricingTierId?: string; studentNote?: string }
 ) => {
-  return prisma.$transaction(async (tx) => {
+  let packageTitle = 'Package';
+  const result = await prisma.$transaction(async (tx) => {
     const coursePackage = await tx.coursePackage.findFirst({
       where: { id: packageId, isActive: true, publishStatus: 'PUBLISHED' },
       include: {
@@ -228,6 +243,7 @@ export const createPackagePurchasePayment = async (
       },
     });
     if (!coursePackage) throw new AppError('Package not found.', 404);
+    packageTitle = coursePackage.title || packageTitle;
     if (coursePackage.courses.length === 0) {
       throw new AppError('Package does not contain courses.', 400);
     }
@@ -381,6 +397,17 @@ export const createPackagePurchasePayment = async (
 
     return { payment, reusedPending: false, enrolledInstantly: false };
   });
+
+  void notifyPurchaseActivity({
+    studentId,
+    payment: result.payment,
+    productKind: 'package',
+    productTitle: packageTitle,
+    reusedPending: Boolean(result.reusedPending),
+    enrolledInstantly: Boolean((result as { enrolledInstantly?: boolean }).enrolledInstantly),
+  });
+
+  return result;
 };
 
 /**

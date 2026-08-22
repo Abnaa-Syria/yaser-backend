@@ -1,8 +1,9 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../../prisma.js';
 import { AppError } from '../../../utils/AppError.js';
-import { previewTemplate, sendMail } from '../../../utils/mail.js';
+import { previewTemplate, sendMail, sendMailToMany } from '../../../utils/mail.js';
 import { clearMaintenanceModeCache } from '../../../services/maintenance.service.js';
+import { userHasRoleName } from '../../../utils/role-query.js';
 
 function toJsonValue(value: unknown): Prisma.InputJsonValue {
   if (value === null || value === undefined) return '';
@@ -116,5 +117,69 @@ export const sendTestEmailTemplate = async (input: {
   }
 
   return { ...result, preview };
+};
+
+export const sendBroadcastEmail = async (input: {
+  mode: 'all_students' | 'selected';
+  studentIds?: string[];
+  subject: string;
+  body: string;
+}) => {
+  const subject = input.subject.trim();
+  const body = input.body.trim();
+  if (!subject || !body) {
+    throw new AppError('Subject and body are required', 400);
+  }
+
+  let recipients: Array<{ email: string; name?: string | null }> = [];
+
+  if (input.mode === 'all_students') {
+    const students = await prisma.user.findMany({
+      where: {
+        deletedAt: null,
+        isActive: true,
+        ...userHasRoleName('STUDENT'),
+        email: { not: '' },
+      },
+      select: { email: true, fullName: true },
+    });
+    recipients = students.map((s) => ({ email: s.email, name: s.fullName }));
+  } else {
+    const ids = [...new Set((input.studentIds || []).filter(Boolean))];
+    if (!ids.length) {
+      throw new AppError('Select at least one student', 400);
+    }
+    const students = await prisma.user.findMany({
+      where: {
+        id: { in: ids },
+        deletedAt: null,
+        ...userHasRoleName('STUDENT'),
+      },
+      select: { email: true, fullName: true },
+    });
+    recipients = students.map((s) => ({ email: s.email, name: s.fullName }));
+  }
+
+  if (!recipients.length) {
+    throw new AppError('No student recipients found', 404);
+  }
+
+  const result = await sendMailToMany({
+    recipients,
+    subject,
+    html: body,
+  });
+
+  if (result.sent === 0 && result.skipped > 0 && result.failed === 0) {
+    throw new AppError(
+      'SMTP is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS to send email.',
+      503
+    );
+  }
+
+  return {
+    ...result,
+    recipientCount: recipients.length,
+  };
 };
 

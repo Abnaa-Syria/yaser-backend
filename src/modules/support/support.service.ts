@@ -1,9 +1,10 @@
 import { prisma } from '../../prisma.js';
 import { AppError } from '../../utils/AppError.js';
+import { detailRows, notifyAdmins } from '../notifications/admin-alert.service.js';
 
 // --- Student Actions ---
 export const createTicket = async (userId: string, data: any) => {
-  return await prisma.supportTicket.create({
+  const ticket = await prisma.supportTicket.create({
     data: {
       creatorId: userId,
       subject: data.subject,
@@ -11,13 +12,33 @@ export const createTicket = async (userId: string, data: any) => {
       messages: {
         create: {
           senderId: userId,
-          message: data.description
-        }
-      }
-
+          message: data.description,
+        },
+      },
     },
-    include: { messages: true }
+    include: {
+      messages: true,
+      creator: { select: { fullName: true, email: true } },
+    },
   });
+
+  void notifyAdmins({
+    title: 'New support ticket',
+    message: `${ticket.creator?.fullName || ticket.creator?.email || 'A user'} opened a support ticket.`,
+    emailSubject: `Support ticket: ${ticket.subject}`,
+    emailDetailsHtml: detailRows([
+      ['From', ticket.creator?.fullName],
+      ['Email', ticket.creator?.email],
+      ['Subject', ticket.subject],
+      ['Priority', ticket.priority],
+    ]),
+    ctaPath: `/admin/tickets/${ticket.id}`,
+    ctaLabel: 'Open ticket',
+    entityId: ticket.id,
+    entityType: 'SupportTicket',
+  });
+
+  return ticket;
 };
 
 export const createTicketForUser = async (creatorId: string, adminId: string, data: any) => {

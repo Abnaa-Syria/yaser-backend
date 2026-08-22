@@ -85,6 +85,26 @@ export const registerUser = async (data: RegisterInput) => {
   await persistRefreshToken(user.id, tokens.refreshToken, sessionId);
   await issueEmailVerification(user.id, user.email, user.fullName);
 
+  void import('../notifications/admin-alert.service.js')
+    .then(({ detailRows, notifyAdmins }) =>
+      notifyAdmins({
+        title: 'New student registration',
+        message: `${user.fullName || user.email} just created a student account.`,
+        emailSubject: 'New student registered',
+        emailDetailsHtml: detailRows([
+          ['Name', user.fullName],
+          ['Email', user.email],
+          ['Username', user.username],
+          ['Phone', user.phone],
+        ]),
+        ctaPath: `/admin/students`,
+        ctaLabel: 'View students',
+        entityId: user.id,
+        entityType: 'User',
+      })
+    )
+    .catch((err) => console.error('[register] admin alert failed', err));
+
   const { password, ...userWithoutPassword } = user;
   return { user: userWithoutPassword, tokens };
 };

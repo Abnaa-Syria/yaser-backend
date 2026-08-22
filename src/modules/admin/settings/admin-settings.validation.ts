@@ -42,3 +42,22 @@ export const sendTestEmailTemplateSchema = z.object({
     vars: z.record(z.string(), z.string()).optional(),
   }),
 });
+
+export const sendBroadcastEmailSchema = z.object({
+  body: z
+    .object({
+      mode: z.enum(['all_students', 'selected']),
+      studentIds: z.array(z.string().uuid()).optional(),
+      subject: z.string().min(3).max(200),
+      body: z.string().min(10).max(50000),
+    })
+    .superRefine((val, ctx) => {
+      if (val.mode === 'selected' && !(val.studentIds && val.studentIds.length > 0)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Select at least one student',
+          path: ['studentIds'],
+        });
+      }
+    }),
+});
